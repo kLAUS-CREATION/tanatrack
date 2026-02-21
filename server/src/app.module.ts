@@ -12,6 +12,8 @@ import { MailerModule } from '@nestjs-modules/mailer';
 import configuration from './config/env.config';
 import { envValidationSchema } from './common/validation/env.validation';
 import { auth } from './lib/auth';
+import { MailService } from './modules/mail/mail.service';
+import { MailModule } from './modules/mail/mail.module';
 
 @Module({
   imports: [
@@ -28,8 +30,6 @@ import { auth } from './lib/auth';
       },
       expandVariables: true,
     }),
-
-
     MailerModule.forRoot({
       transport: {
         host: process.env.EMAIL_HOST,
@@ -39,14 +39,17 @@ import { auth } from './lib/auth';
         },
       },
     }),
+
     // Third Party Modules
     AuthModule.forRoot({ auth }),
 
     // Local Modules
     PrismaModule,
+
+    MailModule,
   ],
 
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, MailService],
 })
 export class AppModule {}
