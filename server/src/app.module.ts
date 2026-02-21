@@ -7,6 +7,7 @@ import { PrismaModule } from './modules/prisma/prisma.module';
 
 // THIRD PARTY MODULES
 import { AuthModule } from '@thallesp/nestjs-better-auth';
+import { MailerModule } from '@nestjs-modules/mailer';
 
 import configuration from './config/env.config';
 import { envValidationSchema } from './common/validation/env.validation';
@@ -28,6 +29,16 @@ import { auth } from './lib/auth';
       expandVariables: true,
     }),
 
+
+    MailerModule.forRoot({
+      transport: {
+        host: process.env.EMAIL_HOST,
+        auth: {
+          user: process.env.EMAIL_USERNAME,
+          pass: process.env.EMAIL_PASSWORD,
+        },
+      },
+    }),
     // Third Party Modules
     AuthModule.forRoot({ auth }),
 
