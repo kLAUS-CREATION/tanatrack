@@ -14,6 +14,10 @@ import { envValidationSchema } from './common/validation/env.validation';
 import { auth } from './lib/auth';
 import { MailService } from './modules/mail/mail.service';
 import { MailModule } from './modules/mail/mail.module';
+import { PlanModule } from './modules/plan/plan.module';
+import { FeaturesController } from './modules/features/features.controller';
+import { FeaturesService } from './modules/features/features.service';
+import { FeaturesModule } from './modules/features/features.module';
 
 @Module({
   imports: [
@@ -47,9 +51,11 @@ import { MailModule } from './modules/mail/mail.module';
     PrismaModule,
 
     MailModule,
+    PlanModule,
+    FeaturesModule,
   ],
 
-  controllers: [AppController],
-  providers: [AppService, MailService],
+  controllers: [AppController, FeaturesController],
+  providers: [AppService, MailService, FeaturesService],
 })
-export class AppModule {}
+export class AppModule { }

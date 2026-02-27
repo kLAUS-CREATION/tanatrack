@@ -79,7 +79,7 @@
 
   --radius: 0.625rem;
 
-  --background: oklch(0.981 0 0);
+  --background: #fefae0;
 
   --foreground: oklch(0.145 0 0);
   --foreground-secondary: oklch(0.395 0 0);
@@ -128,7 +128,7 @@
 }
 
 .dark {
-  --background: #0A0A0A;
+  --background: #292524;
 
   --foreground: oklch(0.985 0 0);
   --foreground-secondary: oklch(0.708 0 0);

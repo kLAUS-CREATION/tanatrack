@@ -18,18 +18,20 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
+import Link from "next/link"
 
-export function TeamSwitcher({
-  teams,
+export function OrganizationSwitcher({
+  organizations,
 }: {
-  teams: {
+  organizations: {
     name: string
     logo: React.ElementType
     plan: string
+    id: string
   }[]
 }) {
   const { isMobile } = useSidebar()
-  const [activeTeam, setActiveTeam] = React.useState(teams[0])
+  const [activeTeam, setActiveTeam] = React.useState(organizations[0])
 
   if (!activeTeam) {
     return null
@@ -44,11 +46,8 @@ export function TeamSwitcher({
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
-              <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-                <activeTeam.logo className="size-4" />
-              </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{activeTeam.name}</span>
+                <span className="truncate font-bold tracking-normal text-foreground">{activeTeam.name}</span>
                 <span className="truncate text-xs">{activeTeam.plan}</span>
               </div>
               <ChevronsUpDown className="ml-auto" />
@@ -61,27 +60,27 @@ export function TeamSwitcher({
             sideOffset={4}
           >
             <DropdownMenuLabel className="text-muted-foreground text-xs">
-              Teams
+              Organizations
             </DropdownMenuLabel>
-            {teams.map((team, index) => (
+            {organizations.map((team) => (
               <DropdownMenuItem
-                key={team.name}
+                key={team.id}
                 onClick={() => setActiveTeam(team)}
                 className="gap-2 p-2"
               >
-                <div className="flex size-6 items-center justify-center rounded-md border">
-                  <team.logo className="size-3.5 shrink-0" />
-                </div>
-                {team.name}
-                <DropdownMenuShortcut>⌘{index + 1}</DropdownMenuShortcut>
+               <Link href={`/dashboard/${team.id}`} className="w-full flex items-center gap-2">
+                   {team.name}
+                </Link>
               </DropdownMenuItem>
             ))}
             <DropdownMenuSeparator />
             <DropdownMenuItem className="gap-2 p-2">
+              <Link href={`/dashboard/new-organization`} className="flex items-center gap-2 size-full">
               <div className="flex size-6 items-center justify-center rounded-md border bg-transparent">
                 <Plus className="size-4" />
               </div>
-              <div className="text-muted-foreground font-medium">Add team</div>
+              <div className="text-muted-foreground font-medium">New Organization</div>
+              </Link>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

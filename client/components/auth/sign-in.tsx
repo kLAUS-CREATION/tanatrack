@@ -22,6 +22,7 @@ import {
 } from "../../components/ui/form";
 
 import { Input } from "../ui/input";
+import SectionHeading from "../shared/section-heading";
 
 type FormValues = z.infer<typeof formSchema>;
 
@@ -62,10 +63,8 @@ export function SignIn() {
 
   return (
     <div className="size-full">
-      <h2 className="text-2xl 2xl:text-3xl text-center mb-6 tracking-[1px] text-foreground">
-        Welcome Back
-      </h2>
 
+      <SectionHeading title1="Welcome" title2={"Back"}  desc={null}/>
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit(onSubmit)}
@@ -159,18 +158,6 @@ export function SignIn() {
           </Button>
         </form>
       </Form>
-
-      <p className="mt-6 text-center text-sm text-foreground-tertiary">
-        Don&apos;t have an account?{" "}
-        <Link
-          href="/auth/sign-up"
-          className={`text-foreground-secondary font-semibold hover:underline ${
-            isLoading ? "pointer-events-none opacity-50" : ""
-          }`}
-        >
-          Sign up
-        </Link>
-      </p>
-    </div>
+   </div>
   );
 }

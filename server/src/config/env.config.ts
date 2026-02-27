@@ -12,4 +12,8 @@ export default () => ({
   better_auth_url: {
     url: process.env.BETTER_AUTH_URL,
   },
+  arifpay: {
+    apiKey: process.env.ARIFPAY_API_KEY,
+    expiration: process.env.ARIFPAY_EXPIRATION || '2027-02-01T03:45:27',
+  },
 });

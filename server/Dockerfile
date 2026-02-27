@@ -1,26 +1,19 @@
-FROM node:20-alpine
+FROM node:20
 
-# Enable pnpm
 RUN corepack enable
 
 WORKDIR /app
 
 COPY package.json pnpm-lock.yaml ./
 
-# Allow pnpm scripts (needed for Nest + Prisma)
 ENV PNPM_ENABLE_PRE_POST_SCRIPTS=true
 
-# Install dependencies
-RUN pnpm install --frozen-lockfile
+RUN pnpm install
 
 COPY . .
 
-# Generate Prisma client
-RUN pnpm prisma generate
-
-# Build NestJS
-RUN pnpm build
+RUN pnpm exec prisma generate
 
 EXPOSE 5500
 
-CMD ["node", "dist/main.js"]
+CMD ["pnpm", "start:dev"]

@@ -11,4 +11,8 @@ export const envValidationSchema = Joi.object({
   better_auth_url: Joi.object({
     url: Joi.string().uri().required(),
   }),
+  arifpay: Joi.object({
+    apiKey: Joi.string().required(),
+    expiration: Joi.string().required(),
+  }),
 });

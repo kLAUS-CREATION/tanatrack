@@ -7,3 +7,312 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+// USER
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  role          UserRole  @default(USER)
+
+  banned        Boolean?
+  banReason     String?
+  banExpires    DateTime?
+
+  sessions      Session[]
+  accounts      Account[]
+
+  memberships   Membership[]
+
+  @@map("user")
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  USER
+  EMPLOYEE
+}
+
+
+
+// SESSION
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  impersonatedBy String?
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+// ACCOUNT
+model Account {
+  id                      String   @id @default(cuid())
+  userId                  String
+  accountId               String
+  providerId              String
+  accessToken             String?
+  refreshToken            String?
+  accessTokenExpiresAt    DateTime?
+  refreshTokenExpiresAt   DateTime?
+  scope                   String?
+  idToken                 String?
+  password                String?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@unique([providerId, accountId])
+  @@map("account")
+}
+
+// VERIFICATION
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// ORGANIZATION (business / workspace)
+model Organization {
+  id            String        @id @default(cuid())
+  name          String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  memberships   Membership[]
+  subscription  Subscription?
+
+
+  invoices  Invoice[]
+
+  @@map("organization")
+}
+
+// MEMBERSHIP (connects user and organization)
+model Membership {
+  id              String        @id @default(cuid())
+
+  userId          String
+  organizationId  String
+
+  role            OrganizationRole
+
+  createdAt       DateTime      @default(now())
+
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization    Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@index([userId])
+  @@index([organizationId])
+
+  @@map("membership")
+}
+
+// ROLE ENUM
+enum OrganizationRole {
+  OWNER
+  ADMIN
+  EMPLOYEE
+}
+
+// PLAN (subscription plan)
+model Plan {
+  id              String          @id @default(cuid())
+  slug            String          @unique // "free", "starter", "pro", "premium", "enterprise"
+  name            String          // "Free", "Starter", "Professional", "Premium", "Enterprise"
+  tagline         String?         // "Best for small shops", "Scale without limits"
+  description     String?         // Markdown/HTML for pricing page
+  badge           String?         // "Popular", "Best Value", "Enterprise Only"
+  sortOrder       Int             @default(0) // For pricing table ordering
+
+  // Pricing
+  currency        String          @default("ETB") // or "ETB" for local focus
+  monthlyPrice    Int?            // in cents, e.g. 2900 = $29.00; null = custom/enterprise
+  yearlyPrice     Int?            // discounted yearly (e.g. 29000 = $290)
+  setupFee        Int?            @default(0)
+  trialDays       Int?            @default(14)
+
+  // Status & visibility
+  isActive        Boolean         @default(true)
+  isPublic        Boolean         @default(true)  // show on /pricing page?
+  isLegacy        Boolean         @default(false)
+  deprecatedAt    DateTime?
+
+  // Relations
+  planFeatures    PlanFeature[]
+  subscriptions   Subscription[]
+  addOns          AddOn[]         // optional upsells (extra warehouse, extra orders block, etc.)
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([slug, isActive, isPublic, sortOrder])
+  @@map("plan")
+}
+
+model Feature {
+  id          String        @id @default(cuid())
+  key         String        @unique // machine-readable: "maxOrdersPerMonth", "serialTracking", "multiChannelIntegrations"
+  name        String        // human: "Maximum Orders per Month", "Serial Number Tracking"
+  description String?       // "Track individual units with unique codes"
+  type        FeatureType
+  category    FeatureCategory?
+
+  planFeatures PlanFeature[]
+
+  @@map("feature")
+}
+
+enum FeatureType {
+  BOOLEAN       // on/off → value = "true" | "false"
+  NUMBER        // hard limit → value = "500" | null = unlimited
+  UNLIMITED     // special marker for "unlimited"
+  COUNT         // e.g. number of integrations allowed
+  LIST          // comma-separated or JSON: "shopify,amazon,woocommerce"
+}
+
+enum FeatureCategory {
+  CORE
+  INVENTORY
+  WAREHOUSING
+  ORDERS
+  PURCHASE
+  INTEGRATIONS
+  REPORTS
+  AUTOMATION
+  CUSTOMIZATION
+  OTHER
+}
+
+model PlanFeature {
+  planId      String
+  featureId   String
+
+  // The actual entitlement for this plan
+  value       String?   // "500", "true", "false", "unlimited", "shopify,amazon", "10"
+
+  // Optional override description per plan
+  overrideDescription String?
+
+  plan        Plan      @relation(fields: [planId], references: [id], onDelete: Cascade)
+  feature     Feature   @relation(fields: [featureId], references: [id], onDelete: Cascade)
+
+  @@id([planId, featureId])
+  @@map("plan_feature")
+}
+
+model AddOn {
+  id              String  @id @default(cuid())
+  slug            String  @unique
+  name            String
+  description     String?
+
+  monthlyPrice    Int     // in cents
+  yearlyPrice     Int?
+
+  linkedFeature   String?
+  maxQuantity     Int?    @default(1)
+
+  // If it only applies to certain plans
+  planId          String?
+  plan            Plan?   @relation(fields: [planId], references: [id])
+
+  @@map("add_on")
+}
+
+
+
+// SUBSCRIPTION (organization subscription)
+// The Subscription for the Organization in here
+model Subscription {
+  id                    String          @id @default(cuid())
+
+  organizationId        String          @unique
+  planId                String
+
+  status                SubscriptionStatus
+
+  currentPeriodStart   DateTime
+  currentPeriodEnd     DateTime
+
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  organization         Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  plan                 Plan            @relation(fields: [planId], references: [id])
+
+  trialEndsAt      DateTime?
+  cancelAtPeriodEnd Boolean  @default(false)  // user cancelled but still active until period ends
+  billingInterval  BillingInterval  // MONTHLY or YEARLY
+
+
+  invoices  Invoice[]
+
+  @@index([organizationId])
+  @@index([planId])
+
+  @@map("subscription")
+}
+
+// SUBSCRIPTION STATUS ENUM
+enum SubscriptionStatus {
+  ACTIVE
+  PENDING
+  EXPIRED
+  CANCELED
+}
+
+enum BillingInterval {
+  MONTHLY
+  YEARLY
+}
+
+model Invoice {
+  id             String        @id @default(cuid())
+  organizationId String
+  subscriptionId String
+  amount         Int
+  currency       String        @default("usd")
+  status         InvoiceStatus
+  paidAt         DateTime?
+  createdAt      DateTime      @default(now())
+
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  subscription   Subscription  @relation(fields: [subscriptionId], references: [id])
+
+  @@index([organizationId])
+  @@map("invoice")
+}
+
+enum InvoiceStatus {
+  DRAFT
+  OPEN
+  PAID
+  VOID
+  UNCOLLECTIBLE
+}

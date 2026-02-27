@@ -17,7 +17,7 @@ import {
 import { NavMain } from "@/components/nav-main"
 import { NavProjects } from "@/components/nav-projects"
 import { NavUser } from "@/components/nav-user"
-import { TeamSwitcher } from "@/components/team-switcher"
+import { OrganizationSwitcher } from "@/components/team-switcher"
 import {
   Sidebar,
   SidebarContent,
@@ -29,8 +29,8 @@ import {
 // This is sample data.
 const data = {
   user: {
-    name: "shadcn",
-    email: "m@example.com",
+    name: "Klaus Mikaelson",
+    email: "klaus@gmail.com",
     avatar: "/avatars/shadcn.jpg",
   },
   teams: [
@@ -156,11 +156,32 @@ const data = {
   ],
 }
 
+const organizations = [
+    {
+      name: "Nora Food Complex",
+      logo: GalleryVerticalEnd,
+      plan: "Enterprise",
+      id: "123"
+    },
+    {
+      name: "Harer Beer",
+      logo: AudioWaveform,
+      plan: "Pro Plan",
+      id: "234"
+    },
+    {
+      name: "Lora Restaurant",
+      logo: Command,
+      plan: "Pro Plan",
+      id: "898"
+    },
+]
+
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
-    <Sidebar collapsible="icon" {...props}>
+    <Sidebar collapsible="offcanvas" {...props} variant="sidebar" >
       <SidebarHeader>
-        <TeamSwitcher teams={data.teams} />
+        <OrganizationSwitcher organizations={organizations} />
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
