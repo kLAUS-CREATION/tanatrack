@@ -18,7 +18,7 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  role          UserRole  @default(USER)
+  role          String    @default("USER")
 
   banned        Boolean?
   banReason     String?
@@ -31,15 +31,6 @@ model User {
 
   @@map("user")
 }
-
-enum UserRole {
-  OWNER
-  ADMIN
-  USER
-  EMPLOYEE
-}
-
-
 
 // SESSION
 model Session {
