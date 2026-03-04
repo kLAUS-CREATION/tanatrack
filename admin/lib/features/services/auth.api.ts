@@ -8,7 +8,6 @@ import type {
 
 import type { Session, User } from "@/lib/auth-client";
 
-// Define local types for OTP operations
 export type OtpType = "email-verification" | "sign-in" | "forget-password";
 
 export interface SendOtpRequest {

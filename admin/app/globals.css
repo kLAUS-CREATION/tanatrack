@@ -2,6 +2,8 @@
 
 @custom-variant dark (&:is(.dark *));
 
+
+
 /* Scrollbar */
 ::-webkit-scrollbar {
   width: 0px;

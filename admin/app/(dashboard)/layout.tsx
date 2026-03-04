@@ -1,9 +1,10 @@
+import DashboardLayout from "@/components/layouts/dashboard-layout";
 import React from "react";
 
 export default function Layout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  return <div className="">
-    {children}
-  </div>
+  return <DashboardLayout>
+        {children}
+    </DashboardLayout>
 }

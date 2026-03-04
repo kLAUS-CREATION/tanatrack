@@ -12,6 +12,7 @@
     "@hookform/resolvers": "^5.2.2",
     "@nestjs-modules/mailer": "^2.0.2",
     "@reduxjs/toolkit": "^2.11.2",
+    "@tanstack/react-table": "^8.21.3",
     "axios": "^1.13.5",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
