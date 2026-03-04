@@ -1,30 +1,59 @@
-import React from 'react';
-import { Home, Key, ShieldCheck, MapPin, BarChart3, Users } from 'lucide-react';
+import { Box, RefreshCw, BarChart3, Globe, ScanBarcode, Users2 } from 'lucide-react';
 import SectionHeading from '../shared/section-heading';
 
-const services = [
-  { icon: Home, title: 'Buy a Home', desc: 'Find your dream home with our expert agents who know every corner of the market.' },
-  { icon: Key, title: 'Sell a Home', desc: 'Get the best value for your property with our premium marketing strategies and network.' },
-  { icon: ShieldCheck, title: 'Property Management', desc: 'Stress-free ownership with our comprehensive management and maintenance services.' },
-  { icon: MapPin, title: 'Location Scouting', desc: 'Need a specific neighborhood? We analyze trends to find the next growing hotspots.' },
-  { icon: BarChart3, title: 'Investment Advice', desc: 'Grow your portfolio with data-driven insights and high-yield property recommendations.' },
-  { icon: Users, title: 'Legal Support', desc: 'Seamless transactions with our network of top-tier real estate attorneys and consultants.' },
+const features = [
+  {
+    icon: Box,
+    title: 'Real-time Tracking',
+    desc: 'Monitor stock levels across multiple warehouses and locations in real-time. Never lose track of an item again.'
+  },
+  {
+    icon: RefreshCw,
+    title: 'Automated Reordering',
+    desc: 'Set smart low-stock alerts and automate purchase orders to ensure you always have what your customers need.'
+  },
+  {
+    icon: BarChart3,
+    title: 'Advanced Analytics',
+    desc: 'Get deep insights into product performance, turnover rates, and sales trends with customizable reports.'
+  },
+  {
+    icon: Globe,
+    title: 'Multichannel Sync',
+    desc: 'Automatically sync inventory levels across Shopify, Amazon, eBay, and your physical stores from one dashboard.'
+  },
+  {
+    icon: ScanBarcode,
+    title: 'Barcode Management',
+    desc: 'Generate, print, and scan barcodes for fast receiving, picking, and packing. Eliminate manual entry errors.'
+  },
+  {
+    icon: Users2,
+    title: 'Team Collaboration',
+    desc: 'Assign roles and permissions to your warehouse staff. Track every movement with detailed activity logs.'
+  },
 ];
 
-const Services: React.FC = () => {
+const Features: React.FC = () => {
   return (
-    <div className="space-y-10 animate-in slide-in-from-bottom-10 duration-700">
-     <SectionHeading title1='Our Premium' title2={'Services'} desc={'Tailored solutions for every real estate need. We combine tradition with innovation.'}/>
+    <div id="features" className="py-24 space-y-16 animate-in slide-in-from-bottom-10 duration-700 container mx-auto">
+      <div className="max-w-3xl">
+        <SectionHeading
+          title1='Powerful Features for'
+          title2={'Modern Inventory'}
+          desc={'Everything you need to manage your supply chain, reduce overhead, and scale your operations globally.'}
+        />
+      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-8">
-        {services.map((s, i) => (
-          <div key={i} className="p-5 rounded-lg  border border-primary/40  hover:shadow-lg transition-all duration-500 group">
-            <div className="w-16 h-16  rounded-2xl flex items-center justify-center mb-8  text-primary transition-colors duration-500">
-              <s.icon size={32} />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+        {features.map((f, i) => (
+          <div key={i} className="p-8 rounded-2xl border border-primary/10 bg-card/50 backdrop-blur-sm hover:border-primary/30 hover:shadow-2xl hover:shadow-primary/5 transition-all duration-300 group">
+            <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center mb-6 text-primary group-hover:scale-110 transition-transform duration-300">
+              <f.icon size={28} />
             </div>
-            <h3 className="text-xl lg:text-2xl  text-foreground-secondary mb-4">{s.title}</h3>
-            <p className="text-foreground-tertiary leading-relaxed text-sm">
-              {s.desc}
+            <h3 className="text-2xl font-bold text-foreground mb-3">{f.title}</h3>
+            <p className="text-foreground-secondary leading-relaxed font-medium">
+              {f.desc}
             </p>
           </div>
         ))}
@@ -33,4 +62,4 @@ const Services: React.FC = () => {
   );
 };
 
-export default Services;
+export default Features;

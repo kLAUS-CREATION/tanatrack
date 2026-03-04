@@ -1,13 +1,13 @@
-import { Users, Code, Calendar, Rocket, ArrowRight } from "lucide-react";
+import { TrendingUp, Zap, ShieldCheck, Globe, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import SectionHeading from "../shared/section-heading";
 
 export default function About() {
   return (
-    <section id="about" className="container mx-auto">
+    <section id="about" className="py-24 space-y-32">
       <StatsSection />
-      <TimelineSection />
+      <VisionSection />
     </section>
   );
 }
@@ -15,49 +15,55 @@ export default function About() {
 const StatsSection = () => {
   const stats = [
     {
-      number: "120+",
-      label: "Active Members",
-      desc: "A vibrant community of passionate developers and tech enthusiasts from ASTU.",
-      icon: <Users className="size-10 lg:size-12 " />,
+      number: "99.9%",
+      label: "Stock Accuracy",
+      desc: "Eliminate discrepancies with our precision tracking and real-time syncing capabilities.",
+      icon: <ShieldCheck className="size-10 lg:size-12" />,
     },
     {
-      number: "40+",
-      label: "Open Source Projects",
-      desc: "Collaborative projects ranging from web apps to machine learning models.",
-      icon: <Code className="size-10 lg:size-12" />,
+      number: "40%",
+      label: "Faster Fulfillment",
+      desc: "Optimize your picking and packing process to get orders out the door in record time.",
+      icon: <Zap className="size-10 lg:size-12" />,
     },
     {
-      number: "20+",
-      label: "Annual Workshops",
-      desc: "Hands-on sessions covering the latest stacks and industry standards.",
-      icon: <Calendar className="size-10 lg:size-12" />,
+      number: "24/7",
+      label: "Real-time Monitoring",
+      desc: "Stay informed about your stock levels across all locations, every second of every day.",
+      icon: <TrendingUp className="size-10 lg:size-12" />,
     },
     {
-      number: "10+",
-      label: "Years of Excellence",
-      desc: "Fostering innovation and technical growth since our establishment.",
-      icon: <Rocket className="size-10 lg:size-12" />,
+      number: "5000+",
+      label: "Growing Brands",
+      desc: "Join thousands of businesses that trust Tana Track to power their supply chain operations.",
+      icon: <Globe className="size-10 lg:size-12" />,
     },
   ];
 
   return (
-    <section className="w-full mx-auto space-y-10">
-     <SectionHeading title1="Our Impact by" title2={"Numbers"} desc={'We are more than just a club; we are a hub for innovation at ASTU, empowering students to build the future.'} />
+    <section className="container mx-auto space-y-16">
+      <div className="max-w-2xl">
+        <SectionHeading
+          title1="Performance that"
+          title2={"Drives Results"}
+          desc={'We provide the tools and insights you need to turn your inventory into a competitive advantage.'}
+        />
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, index) => (
           <div
             key={index}
-            className="p-4 rounded-xs bg-linear-to-tr from-primary to-secondary  border transition-colors group shadow-sm"
+            className="p-8 rounded-3xl bg-primary/5 border border-primary/10 hover:border-primary/20 transition-all duration-300 group shadow-sm"
           >
-            <div className="text-gray-200 mb-10">
+            <div className="text-primary mb-8 group-hover:scale-110 transition-transform duration-300">
               {stat.icon}
             </div>
-            <h3 className="text-3xl font-bold text-text1 mb-1 text-gray-50">
+            <h3 className="text-4xl font-bold text-foreground mb-2">
               {stat.number}
             </h3>
-            <p className="font-semibold text-text2 mb-3 text-gray-100">{stat.label}</p>
-            <p className="text-sm text-text2 leading-relaxed text-gray-100">{stat.desc}</p>
+            <p className="font-bold text-lg text-foreground-secondary mb-3">{stat.label}</p>
+            <p className="text-sm text-foreground-tertiary leading-relaxed">{stat.desc}</p>
           </div>
         ))}
       </div>
@@ -65,73 +71,63 @@ const StatsSection = () => {
   );
 };
 
-const TimelineSection = () => {
-  const milestones = [
-    {
-      year: "2019",
-      title: "The Genesis",
-      desc: "CSEC ASTU was founded with a vision to bridge the gap between academic theory and practical software engineering.",
-    },
-    {
-      year: "2021",
-      title: "Rapid Growth & First Hackathon",
-      desc: "Launched our first campus-wide hackathon and grew to over 200 members during the pandemic era.",
-      image:
-        "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&q=80&w=800",
-    },
-    {
-      year: "2023",
-      title: "Industry Partnerships",
-      desc: "Established connections with top local tech firms, providing internship pathways for our high-performing members.",
-    },
-    {
-      year: "Today",
-      title: "ASTU's Tech Powerhouse",
-      desc: "Now serving as the leading technical community at ASTU, driving innovation through daily standups and research.",
-    },
-  ];
-
+const VisionSection = () => {
   return (
-    <section className="py-24 w-full mx-auto">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
-        <div className="lg:sticky lg:top-32 space-y-10">
-          <SectionHeading title1="Our Beautiful Story" title2={null} desc={`From a small group of enthusiasts to a community of hundreds,
-            here's how CSEC ASTU evolved into a pillar of innovation. From a small group of enthusiasts to a community of hundreds,
-            here's how CSEC ASTU evolved into a pillar of innovation. From a small group of enthusiasts to a community of hundreds,
-            here's how CSEC ASTU evolved into a pillar of innovation. From a small group of enthusiasts to a community of hundreds,
-            here's how CSEC ASTU evolved into a pillar of innovation.`}
-            />
-          <Button className="">
-            View our full history <ArrowRight className="ml-2 w-4 h-4" />
-          </Button>
-        </div>
+    <section className="container mx-auto">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+        <div className="space-y-10">
+          <SectionHeading
+            title1="Our Vision for the"
+            title2="Future of Commerce"
+            desc={`In a world of rapidly evolving supply chains, Tana Track was built to give businesses back control. We believe that inventory should never be a bottleneck to your growth.
 
-        <div className="relative pl-8 border-l-2 border-text2 space-y-16">
-          {milestones.map((item, index) => (
-            <div key={index} className="relative">
-              <div className="absolute -left-[41px] top-0 w-4 h-4 rounded-full bg-white border-4 border-primary" />
-
-              <span className="text-sm font-bold text-text1 tracking-widest uppercase mb-2 block">
-                {item.year}
-              </span>
-              <h3 className="text-2xl font-bold text-text1 mb-3">
-                {item.title}
-              </h3>
-              <p className="text-text2 leading-relaxed mb-6">{item.desc}</p>
-
-              {item.image && (
-                <div className="rounded-2xl overflow-hidden  shadow-sm">
+            Our platform combines cutting-edge technology with intuitive design to simplify the most complex aspects of stock management, from automated procurement to global multi-channel fulfillment.`}
+          />
+          <div className="flex items-center gap-4">
+            <Button size="lg" className="h-14 px-8">
+              Read Our Story <ArrowRight className="ml-2 w-4 h-4" />
+            </Button>
+            <div className="flex -space-x-3">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="size-10 rounded-full border-2 border-background bg-muted overflow-hidden">
                   <Image
-                    width={500}
-                    height={500}
-                    src={"/images/hero1.jpg"}
-                    alt="Milestone"
-                    className="w-full h-64 object-cover"
+                    src={`https://i.pravatar.cc/150?u=${i}`}
+                    alt="User avatar"
+                    width={40}
+                    height={40}
                   />
                 </div>
-              )}
+              ))}
+              <div className="flex items-center justify-center size-10 rounded-full border-2 border-background bg-primary text-[10px] font-bold text-primary-foreground">
+                +2k
+              </div>
             </div>
-          ))}
+            <span className="text-sm font-medium text-foreground-tertiary">Trusted by experts</span>
+          </div>
+        </div>
+
+        <div className="relative">
+          <div className="absolute inset-0 bg-primary/20 blur-[100px] -z-10 rounded-full" />
+          <div className="rounded-[40px] overflow-hidden shadow-2xl border border-white/5">
+            <Image
+              width={800}
+              height={800}
+              src={"/images/hero1.jpg"}
+              alt="Team collaborating on inventory"
+              className="w-full aspect-square object-cover"
+            />
+          </div>
+          <div className="absolute -bottom-10 -left-10 p-8 rounded-3xl bg-background border border-border shadow-2xl animate-bounce-slow">
+            <div className="flex items-center gap-4">
+              <div className="size-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                <TrendingUp size={24} />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-foreground">+85%</p>
+                <p className="text-xs font-medium text-foreground-tertiary uppercase tracking-wider">Efficiency gain</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
