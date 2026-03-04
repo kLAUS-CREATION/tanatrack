@@ -6,12 +6,8 @@ import { emailOTP, admin } from 'better-auth/plugins';
 import { sendEmail } from './mail';
 import { getOtpEmailTemplate } from 'src/constants/email-templates.constant';
 import { prisma } from './prisma';
-import { UserRole } from 'generated/prisma/enums';
 
 const isProd = process.env.NODE_ENV === 'production';
-// const ROLES = ['USER', 'ADMIN', 'OWNER', 'EMPLOYEE'] as const;
-
-import { ac, owner, admin, employee } from './permissions';
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
@@ -25,19 +21,17 @@ export const auth = betterAuth({
     requireEmailVerification: true,
   },
 
-  user: {
-    additionalFields: {
-      role: {
-        type: [
-          UserRole.USER,
-          UserRole.ADMIN,
-          UserRole.OWNER,
-          UserRole.EMPLOYEE,
-        ],
-        input: false,
-      },
-    },
-  },
+  // user: {
+  //   additionalFields: {
+  //     role: {
+  //       type: [
+  //           'ADMIN',
+  //           'USER',
+  //       ],
+  //       input: false,
+  //     },
+  //   },
+  // },
 
   databaseHooks: {
     user: {
@@ -45,8 +39,8 @@ export const auth = betterAuth({
         // eslint-disable-next-line @typescript-eslint/require-await
         before: async (user) => {
           const ownerEmails = process.env.OWNER_EMAILS?.split(':') ?? [];
-          if (ownerEmails.includes(user.email)) {
-            return { data: { ...user, role: UserRole.OWNER } };
+          if (ownerEmails?.includes(user.email)) {
+            return { data: { ...user, role: 'ADMIN' } };
           }
           return { data: user };
         },
@@ -83,15 +77,6 @@ export const auth = betterAuth({
     }),
 
     // For Roles
-    admin({
-      defaultRole: 'user',
-      ac,
-      roles: {
-        owner,
-        admin,
-        employee,
-        user: ac.newRole({}),
-      },
-    }),
+    admin(),
   ],
 });
