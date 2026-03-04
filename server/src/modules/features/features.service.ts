@@ -1,5 +1,5 @@
 import { Injectable, ConflictException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service'; // your provided PrismaService
+import { PrismaService } from '../prisma/prisma.service';
 import { CreateFeatureDto } from './dto/create-feature.dto';
 import {
   Feature,

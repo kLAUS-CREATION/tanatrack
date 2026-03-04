@@ -13,25 +13,23 @@ import {
 } from '@nestjs/common';
 import { FeaturesService } from './features.service';
 import { CreateFeatureDto } from './dto/create-feature.dto';
-import { OrgRoles } from '@thallesp/nestjs-better-auth'; // ← key import
+import { Roles,AllowAnonymous } from '@thallesp/nestjs-better-auth';
 
 @Controller('features')
 export class FeaturesController {
   constructor(private readonly featuresService: FeaturesService) {}
 
-  // ── CREATE ──────────────────────────────────────────────
-  // ONLY org owner/admin of the ACTIVE organization can create features
+  // Create the feature --> ( Only admin )
   @Post()
-  @OrgRoles(['owner', 'admin']) // ← enforces org role + active org
+  @Roles(['admin'])
   @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
   async create(@Body() createFeatureDto: CreateFeatureDto) {
     return this.featuresService.create(createFeatureDto);
   }
 
-  // ── READ (public or optional, your choice) ──────────────
-  // Example: allow anyone authenticated to list features (or make @AllowAnonymous())
+  // Read Features --> ( Everyone )
   @Get()
-  // @AllowAnonymous()
+  @AllowAnonymous()
   async findAll() {
     return this.featuresService.findAll();
   }
@@ -41,9 +39,9 @@ export class FeaturesController {
     return this.featuresService.findOne(id);
   }
 
-  // ── UPDATE & DELETE ─────────────────────────────────────
+  // Update and Delete --> ( Only admin )
   @Put(':id')
-  @OrgRoles(['owner', 'admin'])
+  @Roles(['admin'])
   @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
   async update(
     @Param('id') id: string,
@@ -54,7 +52,7 @@ export class FeaturesController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @OrgRoles(['owner', 'admin'])
+  @Roles(['admin'])
   async remove(@Param('id') id: string) {
     await this.featuresService.remove(id);
   }
