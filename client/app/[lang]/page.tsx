@@ -3,15 +3,19 @@ import Header from "@/components/landing/header";
 import Hero from "@/components/landing/hero";
 import Plans from "@/components/landing/plans";
 import Services from "@/components/landing/services";
+import Footer from "@/components/landing/footer";
 
 export default function Page() {
   return (
-    <div className="container mx-auto font-sans space-y-10">
+    <div className="font-sans">
       <Header />
-      <Hero />
-      <About />
-      <Services />
-      <Plans />
+      <main className="space-y-32">
+        <Hero />
+        <Services />
+        <About />
+        <Plans />
+      </main>
+      <Footer />
     </div>
   );
 }
