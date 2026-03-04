@@ -17,7 +17,7 @@ import {
 import { NavMain } from "@/components/nav-main"
 import { NavProjects } from "@/components/nav-projects"
 import { NavUser } from "@/components/nav-user"
-import { OrganizationSwitcher } from "@/components/team-switcher"
+import { AdminDashboardHeader } from "@/components/team-switcher"
 import {
   Sidebar,
   SidebarContent,
@@ -33,23 +33,6 @@ const data = {
     email: "m@example.com",
     avatar: "/avatars/shadcn.jpg",
   },
-  teams: [
-    {
-      name: "Acme Inc",
-      logo: GalleryVerticalEnd,
-      plan: "Enterprise",
-    },
-    {
-      name: "Acme Corp.",
-      logo: AudioWaveform,
-      plan: "Startup",
-    },
-    {
-      name: "Evil Corp.",
-      logo: Command,
-      plan: "Free",
-    },
-  ],
   navMain: [
     {
       title: "Playground",
@@ -156,32 +139,11 @@ const data = {
   ],
 }
 
-const organizations = [
-    {
-      name: "Nora Food Complex",
-      logo: GalleryVerticalEnd,
-      plan: "Enterprise",
-      id: "123"
-    },
-    {
-      name: "Harer Beer",
-      logo: AudioWaveform,
-      plan: "Pro Plan",
-      id: "234"
-    },
-    {
-      name: "Lora Restaurant",
-      logo: Command,
-      plan: "Pro Plan",
-      id: "898"
-    },
-]
-
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <OrganizationSwitcher organizations={organizations} />
+        <AdminDashboardHeader />
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />

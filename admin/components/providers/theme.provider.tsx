@@ -10,7 +10,6 @@ export default function ThemeProvider({
   children: React.ReactNode;
 }) {
   const isDarkMode = useSelector((state: RootState) => state.theme.isDark);
-  console.log("is this a dark mode ?: ", isDarkMode);
 
   return (
     <div

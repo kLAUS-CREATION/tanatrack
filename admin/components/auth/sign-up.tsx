@@ -40,7 +40,6 @@ const SignUp = function () {
       name: "",
       email: "",
       password: "",
-      passwordConfirm: "",
     },
   });
 
@@ -148,43 +147,6 @@ const SignUp = function () {
                       onClick={() => setShowPassword((prev) => !prev)}
                     >
                       {showPassword ? (
-                        <EyeOff className="h-5 w-5" />
-                      ) : (
-                        <Eye className="h-5 w-5" />
-                      )}
-                    </Button>
-                  </div>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Confirm Password Field */}
-          <FormField
-            control={form.control}
-            name="passwordConfirm"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Confirm Password</FormLabel>
-                <FormControl>
-                  <div className="relative">
-                    <Input
-                      {...field}
-                      disabled={isLoading}
-                      type={showPasswordConfirm ? "text" : "password"}
-                      placeholder="••••••••"
-                      className="h-11 pr-10 rounded-lg border-foreground-tertiary/20 transition"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      disabled={isLoading}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:bg-transparent"
-                      onClick={() => setShowPasswordConfirm((prev) => !prev)}
-                    >
-                      {showPasswordConfirm ? (
                         <EyeOff className="h-5 w-5" />
                       ) : (
                         <Eye className="h-5 w-5" />
