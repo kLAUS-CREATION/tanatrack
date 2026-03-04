@@ -1,4 +1,3 @@
-// src/prisma/prisma.module.ts
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Pool } from 'pg';
@@ -9,8 +8,12 @@ import { PrismaService } from './prisma.service';
     {
       provide: PrismaService,
       useFactory: (configService: ConfigService) => {
-        const databaseUrl = configService.get<string>('database');
+        const databaseUrl = configService.get<string>('database.uri');
+        if (!databaseUrl) {
+          throw new Error('Database URL is not defined');
+        }
 
+        // NestJS never injects Pool; we create it manually
         const pool = new Pool({
           connectionString: databaseUrl,
           max: 20,
