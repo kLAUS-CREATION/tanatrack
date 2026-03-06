@@ -6,15 +6,20 @@ import { CreatePlanDto, UpdatePlanFeaturesDto } from './dto/plan.dto';
 export class PlanService {
   constructor(private prisma: PrismaService) {}
 
-  // List all plans with their features (Used for Pricing Pages)
+  // Standard include object to reuse in all methods
+  private planInclude = {
+    planFeatures: {
+      include: {
+        feature: true,
+      },
+    },
+  };
+
+  // List all plans with full feature details
   async findAll() {
     return this.prisma.plan.findMany({
       where: { isActive: true },
-      include: {
-        planFeatures: {
-          include: { feature: true },
-        },
-      },
+      include: this.planInclude,
       orderBy: { sortOrder: 'asc' },
     });
   }
@@ -26,15 +31,16 @@ export class PlanService {
     return this.prisma.plan.create({
       data: {
         ...planData,
-        planFeatures: {
-          create: features?.map((f) => ({
+        sortOrder: planData.sortOrder ?? 0,
+        planFeatures: features && features.length > 0 ? {
+          create: features.map((f) => ({
             featureId: f.featureId,
             value: f.value,
             overrideDescription: f.overrideDescription,
           })),
-        },
+        } : undefined,
       },
-      include: { planFeatures: true },
+      include: this.planInclude, // Include full details in the response
     });
   }
 
@@ -42,9 +48,7 @@ export class PlanService {
     const plan = await this.prisma.plan.findUnique({
       where: { id },
       include: {
-        planFeatures: {
-          include: { feature: true },
-        },
+        ...this.planInclude,
         addOns: true,
       },
     });
@@ -56,23 +60,25 @@ export class PlanService {
   async update(id: string, dto: Partial<CreatePlanDto>) {
     const { features, ...planData } = dto;
 
-    // We only update the Plan basic info here.
-    // Features are handled by the specific sync endpoint below.
     return this.prisma.plan.update({
       where: { id },
-      data: planData,
+      data: {
+        ...planData,
+        sortOrder: planData.sortOrder !== undefined ? planData.sortOrder : undefined,
+      },
+      include: this.planInclude,
     });
   }
 
-  // Sync Features: This deletes old plan links and creates new ones
+  // Sync Features: Replaces all links
   async syncFeatures(planId: string, dto: UpdatePlanFeaturesDto) {
-    await this.findOne(planId); // Verify plan exists
+    await this.findOne(planId);
 
     return this.prisma.$transaction(async (tx) => {
       // 1. Remove all current feature assignments
       await tx.planFeature.deleteMany({ where: { planId } });
 
-      // 2. Assign the new list of features and values
+      // 2. Assign the new list
       return tx.plan.update({
         where: { id: planId },
         data: {
@@ -84,14 +90,13 @@ export class PlanService {
             })),
           },
         },
-        include: { planFeatures: true },
+        include: this.planInclude,
       });
     });
   }
 
   async remove(id: string) {
     await this.findOne(id);
-    // Usually better to soft-delete by setting isActive: false
     return this.prisma.plan.update({
       where: { id },
       data: { isActive: false },

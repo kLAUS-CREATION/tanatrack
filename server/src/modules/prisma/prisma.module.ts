@@ -1,19 +1,20 @@
-import { Module } from '@nestjs/common';
+import { Module, Global } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Pool } from 'pg';
 import { PrismaService } from './prisma.service';
 
+@Global() // Highly recommended so you don't have to import PrismaModule in every feature module
 @Module({
   providers: [
     {
       provide: PrismaService,
       useFactory: (configService: ConfigService) => {
         const databaseUrl = configService.get<string>('database.uri');
+
         if (!databaseUrl) {
-          throw new Error('Database URL is not defined');
+          throw new Error('Database URL is not defined in ConfigService');
         }
 
-        // NestJS never injects Pool; we create it manually
         const pool = new Pool({
           connectionString: databaseUrl,
           max: 20,

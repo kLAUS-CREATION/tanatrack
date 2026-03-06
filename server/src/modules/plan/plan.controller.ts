@@ -46,7 +46,6 @@ export class PlanController {
     return this.planService.update(id, updatePlanDto);
   }
 
-  // Use this endpoint to specifically update the limits/features of a plan
   @Put(':id/features')
   @Roles(['admin'])
   @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))

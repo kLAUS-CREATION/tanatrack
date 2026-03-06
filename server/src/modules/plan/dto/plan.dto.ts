@@ -1,5 +1,6 @@
 import { IsString, IsInt, IsOptional, IsBoolean, IsArray, ValidateNested, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
+import { PlanType } from 'generated/prisma/enums';
 
 export class PlanFeatureInputDto {
   @IsString()
@@ -16,6 +17,9 @@ export class PlanFeatureInputDto {
 export class CreatePlanDto {
   @IsString() slug: string;
   @IsString() name: string;
+
+  @IsEnum(PlanType)
+  type: PlanType;
 
   @IsOptional() @IsString() tagline?: string;
   @IsOptional() @IsString() description?: string;
