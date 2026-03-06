@@ -64,7 +64,7 @@ export default function Plans() {
                 {tiers.map((tier, index) => (
                     <div
                         key={index}
-                        className={`relative p-10 rounded-[2.5rem] border ${tier.popular
+                        className={`relative p-10 rounded-xs border ${tier.popular
                                 ? "border-primary bg-primary/5 shadow-2xl shadow-primary/10 scale-105 z-10"
                                 : "border-border bg-card shadow-sm"
                             } flex flex-col transition-all duration-300 hover:shadow-xl`}

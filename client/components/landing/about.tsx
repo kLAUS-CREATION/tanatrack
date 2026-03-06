@@ -54,15 +54,12 @@ const StatsSection = () => {
         {stats.map((stat, index) => (
           <div
             key={index}
-            className="p-8 rounded-3xl bg-primary/5 border border-primary/10 hover:border-primary/20 transition-all duration-300 group shadow-sm"
+            className="p-4 rounded-xl bg-background2 border border-primary/40 dark:border-primary/30 hover:border-primary/20 transition-all duration-300 group shadow-sm"
           >
-            <div className="text-primary mb-8 group-hover:scale-110 transition-transform duration-300">
-              {stat.icon}
-            </div>
-            <h3 className="text-4xl font-bold text-foreground mb-2">
+            <h3 className="text-4xl font-medium text-foreground mb-2">
               {stat.number}
             </h3>
-            <p className="font-bold text-lg text-foreground-secondary mb-3">{stat.label}</p>
+            <p className="font-normal text-lg text-foreground-secondary mb-3">{stat.label}</p>
             <p className="text-sm text-foreground-tertiary leading-relaxed">{stat.desc}</p>
           </div>
         ))}
@@ -84,7 +81,7 @@ const VisionSection = () => {
             Our platform combines cutting-edge technology with intuitive design to simplify the most complex aspects of stock management, from automated procurement to global multi-channel fulfillment.`}
           />
           <div className="flex items-center gap-4">
-            <Button size="lg" className="h-14 px-8">
+            <Button size="lg">
               Read Our Story <ArrowRight className="ml-2 w-4 h-4" />
             </Button>
             <div className="flex -space-x-3">
@@ -107,8 +104,7 @@ const VisionSection = () => {
         </div>
 
         <div className="relative">
-          <div className="absolute inset-0 bg-primary/20 blur-[100px] -z-10 rounded-full" />
-          <div className="rounded-[40px] overflow-hidden shadow-2xl border border-white/5">
+          <div className="rounded-xs overflow-hidden shadow-xs border border-white/5 h-[60vh]">
             <Image
               width={800}
               height={800}
@@ -117,7 +113,7 @@ const VisionSection = () => {
               className="w-full aspect-square object-cover"
             />
           </div>
-          <div className="absolute -bottom-10 -left-10 p-8 rounded-3xl bg-background border border-border shadow-2xl animate-bounce-slow">
+          <div className="absolute -bottom-10 -left-10 p-8 rounded-xs bg-background border border-border animate-bounce-slow">
             <div className="flex items-center gap-4">
               <div className="size-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
                 <TrendingUp size={24} />

@@ -47,12 +47,9 @@ const Features: React.FC = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
         {features.map((f, i) => (
-          <div key={i} className="p-8 rounded-2xl border border-primary/10 bg-card/50 backdrop-blur-sm hover:border-primary/30 hover:shadow-2xl hover:shadow-primary/5 transition-all duration-300 group">
-            <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center mb-6 text-primary group-hover:scale-110 transition-transform duration-300">
-              <f.icon size={28} />
-            </div>
-            <h3 className="text-2xl font-bold text-foreground mb-3">{f.title}</h3>
-            <p className="text-foreground-secondary leading-relaxed font-medium">
+          <div key={i} className="p-4 rounded-xs border border-primary/50 dark:border-primary/30  bg-background2 backdrop-blur-sm hover:border-primary/30 hover:shadow-2xl hover:shadow-primary/5 transition-all duration-300 group">
+            <h3 className="text-2xl font-normal text-foreground mb-3">{f.title}</h3>
+            <p className="text-foreground-secondary leading-relaxed font-normal">
               {f.desc}
             </p>
           </div>
