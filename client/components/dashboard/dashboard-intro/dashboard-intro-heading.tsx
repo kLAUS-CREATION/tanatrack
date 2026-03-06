@@ -4,8 +4,8 @@ import Link from "next/link";
 
 export default function DashboardIntoHeading () {
     return (
-        <header className="w-full h-[10%]">
-            <div className="container h-full mx-auto flex justify-between items-center">
+        <header className="w-full h-[7%] border-b">
+            <div className="w-[98%] lg:w-[95%] h-full mx-auto flex justify-between items-center">
                 <Logo />
                 <DashboardIntroNewOrganizationButton />
             </div>
@@ -14,8 +14,8 @@ export default function DashboardIntoHeading () {
 }
 
 const DashboardIntroNewOrganizationButton = function () {
-    return <Link href={'/dashboard/new-organization/plans'}>
-        <Button variant={'outline'}>
+    return <Link href={'/dashboard/new-organization'}>
+        <Button>
             New Organization
         </Button>
     </Link>
