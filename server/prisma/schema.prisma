@@ -91,8 +91,13 @@ model Verification {
 model Organization {
   id            String        @id @default(cuid())
   name          String
+  isActive      Boolean       @default(true)
+  logoUrl       String?
+  timeZone      String?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
+
+  metadata      Json?
 
   memberships   Membership[]
   subscription  Subscription?
@@ -131,39 +136,45 @@ enum OrganizationRole {
   EMPLOYEE
 }
 
-// PLAN (subscription plan)
 model Plan {
   id              String          @id @default(cuid())
-  slug            String          @unique // "free", "starter", "pro", "premium", "enterprise"
-  name            String          // "Free", "Starter", "Professional", "Premium", "Enterprise"
-  tagline         String?         // "Best for small shops", "Scale without limits"
-  description     String?         // Markdown/HTML for pricing page
-  badge           String?         // "Popular", "Best Value", "Enterprise Only"
-  sortOrder       Int             @default(0) // For pricing table ordering
+  slug            String          @unique
+  name            String
+  tagline         String?
+  description     String?
+  badge           String?
+  sortOrder       Int
+
+  type            PlanType
 
   // Pricing
-  currency        String          @default("ETB") // or "ETB" for local focus
-  monthlyPrice    Int?            // in cents, e.g. 2900 = $29.00; null = custom/enterprise
-  yearlyPrice     Int?            // discounted yearly (e.g. 29000 = $290)
+  currency        String          @default("ETB")
+  monthlyPrice    Int?
+  yearlyPrice     Int?
   setupFee        Int?            @default(0)
   trialDays       Int?            @default(14)
 
   // Status & visibility
   isActive        Boolean         @default(true)
-  isPublic        Boolean         @default(true)  // show on /pricing page?
+  isPublic        Boolean         @default(true)
   isLegacy        Boolean         @default(false)
   deprecatedAt    DateTime?
 
   // Relations
   planFeatures    PlanFeature[]
   subscriptions   Subscription[]
-  addOns          AddOn[]         // optional upsells (extra warehouse, extra orders block, etc.)
+  addOns          AddOn[]
 
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
   @@index([slug, isActive, isPublic, sortOrder])
   @@map("plan")
+}
+
+enum PlanType {
+  FREE
+  PAID
 }
 
 model Feature {
@@ -204,10 +215,8 @@ model PlanFeature {
   planId      String
   featureId   String
 
-  // The actual entitlement for this plan
-  value       String?   // "500", "true", "false", "unlimited", "shopify,amazon", "10"
+  value       String?
 
-  // Optional override description per plan
   overrideDescription String?
 
   plan        Plan      @relation(fields: [planId], references: [id], onDelete: Cascade)
@@ -238,8 +247,6 @@ model AddOn {
 
 
 
-// SUBSCRIPTION (organization subscription)
-// The Subscription for the Organization in here
 model Subscription {
   id                    String          @id @default(cuid())
 
@@ -248,7 +255,17 @@ model Subscription {
 
   status                SubscriptionStatus
 
+  hasFreeTrial          Boolean             @default(true)
+  trialEndsAt           DateTime?
+
+  cancelAtPeriodEnd     Boolean  @default(false)
+  billingInterval       BillingInterval
+
+  // This is the start of the current billing period which is Date.now
   currentPeriodStart   DateTime
+
+
+  // if it is creation time if it has free trial interval + trial day
   currentPeriodEnd     DateTime
 
   createdAt            DateTime        @default(now())
@@ -256,11 +273,6 @@ model Subscription {
 
   organization         Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   plan                 Plan            @relation(fields: [planId], references: [id])
-
-  trialEndsAt      DateTime?
-  cancelAtPeriodEnd Boolean  @default(false)  // user cancelled but still active until period ends
-  billingInterval  BillingInterval  // MONTHLY or YEARLY
-
 
   invoices  Invoice[]
 
@@ -270,9 +282,9 @@ model Subscription {
   @@map("subscription")
 }
 
-// SUBSCRIPTION STATUS ENUM
 enum SubscriptionStatus {
   ACTIVE
+  ONFREETRIAL
   PENDING
   EXPIRED
   CANCELED
@@ -288,7 +300,7 @@ model Invoice {
   organizationId String
   subscriptionId String
   amount         Int
-  currency       String        @default("usd")
+  currency       String        @default("ETB")
   status         InvoiceStatus
   paidAt         DateTime?
   createdAt      DateTime      @default(now())
