@@ -9,7 +9,6 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -19,22 +18,28 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import Link from "next/link"
+import { useParams, useRouter } from "next/navigation"
+import { useGetOrganizationByIdQuery, useGetOrganizationsQuery } from "@/lib/features/services/organization.api"
 
-export function OrganizationSwitcher({
-  organizations,
-}: {
-  organizations: {
-    name: string
-    logo: React.ElementType
-    plan: string
-    id: string
-  }[]
-}) {
+export function OrganizationSwitcher() {
   const { isMobile } = useSidebar()
-  const [activeTeam, setActiveTeam] = React.useState(organizations[0])
+  const { dashboardId } = useParams();
+  console.log("this is the route: ", dashboardId, typeof(dashboardId));
 
-  if (!activeTeam) {
-    return null
+  if (!dashboardId) {
+      throw new Error("Cant get the dashboard Id");
+  }
+
+  const { data: organization, isLoading} = useGetOrganizationByIdQuery(dashboardId as string);
+  const router = useRouter();
+
+  if ( !organization && !isLoading) {
+      router.push("/dashboard")
+  }
+
+  const { data: organizations} = useGetOrganizationsQuery();
+  if (!organizations) {
+      throw new Error("Cant get the organization for the user");
   }
 
   return (
@@ -47,8 +52,8 @@ export function OrganizationSwitcher({
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-bold tracking-normal text-foreground">{activeTeam.name}</span>
-                <span className="truncate text-xs">{activeTeam.plan}</span>
+                <span className="truncate font-bold tracking-normal text-foreground">{organization?.name}</span>
+                <span className="truncate text-xs">{organization?.subscription?.plan?.name}</span>
               </div>
               <ChevronsUpDown className="ml-auto" />
             </SidebarMenuButton>
@@ -62,14 +67,13 @@ export function OrganizationSwitcher({
             <DropdownMenuLabel className="text-muted-foreground text-xs">
               Organizations
             </DropdownMenuLabel>
-            {organizations.map((team) => (
+            {organizations.map((org) => (
               <DropdownMenuItem
-                key={team.id}
-                onClick={() => setActiveTeam(team)}
+                key={org.id}
                 className="gap-2 p-2"
               >
-               <Link href={`/dashboard/${team.id}`} className="w-full flex items-center gap-2">
-                   {team.name}
+               <Link href={`/dashboard/${org.id}`} className="w-full flex items-center gap-2">
+                   {org.name}
                 </Link>
               </DropdownMenuItem>
             ))}
