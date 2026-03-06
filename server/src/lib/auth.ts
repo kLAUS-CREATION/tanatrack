@@ -15,23 +15,11 @@ export const auth = betterAuth({
   }),
   trustedOrigins: isProd
     ? ['https://tana-track.vercel.app']
-    : ['http://localhost:3000'],
+    : ['http://localhost:3000', 'http://localhost:3001'],
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,
   },
-
-  // user: {
-  //   additionalFields: {
-  //     role: {
-  //       type: [
-  //           'ADMIN',
-  //           'USER',
-  //       ],
-  //       input: false,
-  //     },
-  //   },
-  // },
 
   databaseHooks: {
     user: {
