@@ -18,6 +18,7 @@ import { PlanModule } from './modules/plan/plan.module';
 import { FeaturesController } from './modules/features/features.controller';
 import { FeaturesService } from './modules/features/features.service';
 import { FeaturesModule } from './modules/features/features.module';
+import { OrganizationModule } from './modules/organization/organization.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { FeaturesModule } from './modules/features/features.module';
     MailModule,
     PlanModule,
     FeaturesModule,
+    OrganizationModule,
   ],
 
   controllers: [AppController, FeaturesController],
