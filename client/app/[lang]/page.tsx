@@ -7,7 +7,7 @@ import Footer from "@/components/landing/footer";
 
 export default function Page() {
   return (
-    <div className="font-sans">
+    <div className="">
       <Header />
       <main className="space-y-32">
         <Hero />

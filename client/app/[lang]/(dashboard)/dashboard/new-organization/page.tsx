@@ -1,7 +1,5 @@
-import React from "react";
+import NewOrganization from "@/components/dashboard/new-organization/new-organizations";
 
 export default function Page() {
-    return <div>
-        <h1> The Page you create new organization </h1>
-    </div>
+    return <NewOrganization />
 }
