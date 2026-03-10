@@ -1,6 +1,5 @@
 "use client"
 
-import * as React from "react"
 import { ChevronsUpDown, Plus } from "lucide-react"
 
 import {
@@ -24,7 +23,6 @@ import { useGetOrganizationByIdQuery, useGetOrganizationsQuery } from "@/lib/fea
 export function OrganizationSwitcher() {
   const { isMobile } = useSidebar()
   const { dashboardId } = useParams();
-  console.log("this is the route: ", dashboardId, typeof(dashboardId));
 
   if (!dashboardId) {
       throw new Error("Cant get the dashboard Id");
@@ -33,14 +31,16 @@ export function OrganizationSwitcher() {
   const { data: organization, isLoading} = useGetOrganizationByIdQuery(dashboardId as string);
   const router = useRouter();
 
-  if ( !organization && !isLoading) {
-      router.push("/dashboard")
+  if (!organization && !isLoading) {
+      // console.log("this is organization: ", organization);
+      router.push(`/organizations/${dashboardId}`)
   }
 
-  const { data: organizations} = useGetOrganizationsQuery();
-  if (!organizations) {
+  const { data: organizations, isLoading: isLoadingOrganizations} = useGetOrganizationsQuery();
+  if (!organizations && !isLoadingOrganizations) {
       throw new Error("Cant get the organization for the user");
   }
+
 
   return (
     <SidebarMenu>
@@ -67,7 +67,7 @@ export function OrganizationSwitcher() {
             <DropdownMenuLabel className="text-muted-foreground text-xs">
               Organizations
             </DropdownMenuLabel>
-            {organizations.map((org) => (
+            {organizations && organizations?.map((org) => (
               <DropdownMenuItem
                 key={org.id}
                 className="gap-2 p-2"

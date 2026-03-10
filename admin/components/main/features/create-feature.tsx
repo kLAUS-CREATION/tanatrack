@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner"; // or your toast of choice
 import { Loader2, PlusCircle } from "lucide-react";
+import z from "zod";
 
 export function CreateFeatureForm({ onSuccess }: { onSuccess: () => void }) {
   const [createFeature, { isLoading }] = useCreateFeatureMutation();
@@ -23,7 +24,7 @@ export function CreateFeatureForm({ onSuccess }: { onSuccess: () => void }) {
       await createFeature(values).unwrap();
       toast.success("Feature created successfully!");
       form.reset();
-      onSuccess(); // Switch back to list tab
+      onSuccess();
     } catch (error) {
       toast.error("Failed to create feature");
     }
@@ -57,7 +58,7 @@ export function CreateFeatureForm({ onSuccess }: { onSuccess: () => void }) {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="flex items-center gap-4">
           <FormField
             control={form.control}
             name="type"
@@ -92,8 +93,8 @@ export function CreateFeatureForm({ onSuccess }: { onSuccess: () => void }) {
           />
         </div>
 
-        <Button type="submit" className="w-full" disabled={isLoading}>
-          {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
+        <Button type="submit"  disabled={isLoading}>
+          {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Create Feature
         </Button>
       </form>

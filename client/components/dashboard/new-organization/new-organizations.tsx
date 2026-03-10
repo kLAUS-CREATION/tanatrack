@@ -4,12 +4,18 @@ import React, { useState } from "react"
 import SectionHeading from "@/components/shared/section-heading"
 import OrganizationCreationForm from "./organization-creation-form"
 import PlansSelection from "./plans-selection"
+import { BillingInterval } from "@/types/organization"
 
 export default function NewOrganization() {
     const [selectedPlanId, setSelectedPlanId] = useState<string>("");
+    const [planInterval, setPlanInterval] = useState<BillingInterval>(BillingInterval.MONTHLY)
+
+    const updatePlanInterval = function (planInterval: BillingInterval) {
+        setPlanInterval(planInterval)
+    }
 
     return (
-        <div className="w-[98%] lg:w-[95%] mx-auto px-4  min-h-screen">
+        <div className="w-[98%] lg:w-[95%] mx-auto size-full">
             <div className="py-6 mb-10 border-b border-border/50">
                 <SectionHeading
                     title1="Create Your New"
@@ -19,19 +25,14 @@ export default function NewOrganization() {
             </div>
 
             <div className="w-full flex flex-col lg:flex-row gap-12 items-start backdrop-blur-md rounded-[2.5rem]">
-
-                <OrganizationCreationForm selectedPlanId={selectedPlanId} />
-
+                <OrganizationCreationForm planInterval={planInterval} selectedPlanId={selectedPlanId} />
                 <PlansSelection
+                    onUpdatePlanInterval={updatePlanInterval}
+                    planInterval={planInterval}
                     selectedPlanId={selectedPlanId}
                     onSelect={(id) => setSelectedPlanId(id)}
                 />
-
             </div>
-
-            <p className="mt-8 text-center text-sm text-muted-foreground">
-                By creating an organization, you agree to our Terms of Service and Privacy Policy.
-            </p>
         </div>
     )
 }

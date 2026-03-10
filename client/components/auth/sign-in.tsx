@@ -64,7 +64,7 @@ export function SignIn() {
   return (
     <div className="size-full">
 
-      <SectionHeading title1="Welcome" title2={"Back"}  desc={null}/>
+      <SectionHeading title1="Welcome" title2={"Back"} desc={null} />
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit(onSubmit)}
@@ -138,9 +138,8 @@ export function SignIn() {
           <div className="flex items-center justify-end">
             <Link
               href="/auth/forgot-password"
-              className={`text-sm font-semibold hover:underline text-foreground-secondary ${
-                isLoading ? "pointer-events-none opacity-50" : ""
-              }`}
+              className={`text-sm font-semibold hover:underline text-foreground-secondary ${isLoading ? "pointer-events-none opacity-50" : ""
+                }`}
             >
               Forgot Password?
             </Link>
@@ -158,6 +157,6 @@ export function SignIn() {
           </Button>
         </form>
       </Form>
-   </div>
+    </div>
   );
 }

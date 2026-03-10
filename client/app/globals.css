@@ -1,8 +1,6 @@
 @import "tailwindcss";
 
-@custom-variant dark (&:is(.dark *));
 
-/* Scrollbar */
 ::-webkit-scrollbar {
   width: 0px;
   color: #87cefa;
@@ -13,9 +11,9 @@
   background-color: #87cefa44;
 }
 
-/* Tailwind v4 inline theme */
 @theme inline {
   --color-background: var(--background);
+  --color-background2: var(--background2);
   --color-foreground: var(--foreground);
   --color-foreground-secondary: var(--foreground-secondary);
   --color-foreground-tertiary: var(--foreground-tertiary);
@@ -79,7 +77,8 @@
 
   --radius: 0.625rem;
 
-  --background: #fefae0;
+  --background: #fefff0;
+  --background2: #fefaef;
 
   --foreground: oklch(0.145 0 0);
   --foreground-secondary: oklch(0.395 0 0);
@@ -176,20 +175,4 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
-/* Base layer */
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
 
-  body {
-    @apply bg-background text-foreground;
-    font-family: var(--font-sans);
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
-
-  h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-display);
-  }
-}

@@ -1,10 +1,5 @@
 @import "tailwindcss";
 
-@custom-variant dark (&:is(.dark *));
-
-
-
-/* Scrollbar */
 ::-webkit-scrollbar {
   width: 0px;
   color: #87cefa;
@@ -15,7 +10,6 @@
   background-color: #87cefa44;
 }
 
-/* Tailwind v4 inline theme */
 @theme inline {
   --color-background: var(--background);
   --color-background2: var(--background2);
@@ -82,7 +76,7 @@
 
   --radius: 0.625rem;
 
-  --background: #feffff;
+  --background: #fefff0;
   --background2: #fefaef;
 
   --foreground: oklch(0.145 0 0);

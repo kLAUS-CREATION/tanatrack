@@ -1,22 +1,21 @@
 export enum FeatureType {
   BOOLEAN = 'BOOLEAN',
   NUMBER = 'NUMBER',
-  UNLIMITED = 'UNLIMITED',
-  COUNT = 'COUNT',
   LIST = 'LIST',
 }
 
 export enum FeatureCategory {
-  CORE = 'CORE',
+  AI = 'AI',
   INVENTORY = 'INVENTORY',
   WAREHOUSING = 'WAREHOUSING',
   ORDERS = 'ORDERS',
   PURCHASE = 'PURCHASE',
-  INTEGRATIONS = 'INTEGRATIONS',
   REPORTS = 'REPORTS',
-  AUTOMATION = 'AUTOMATION',
-  CUSTOMIZATION = 'CUSTOMIZATION',
-  OTHER = 'OTHER',
+  HELP = 'HELP',
+  USERS = 'USERS',
+  SUPPLIERS = 'SUPPLIERS',
+  SALES = 'SALES',
+  PRODUCTS = 'PRODUCTS'
 }
 
 export interface IFeature {

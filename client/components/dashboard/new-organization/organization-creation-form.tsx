@@ -10,10 +10,9 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, Loader2, Rocket, Sparkles } from "lucide-react";
+import { Building2, Loader2} from "lucide-react";
 
-export default function OrganizationCreationForm({ selectedPlanId }: { selectedPlanId: string }) {
+export default function OrganizationCreationForm({ selectedPlanId , planInterval }: { selectedPlanId: string, planInterval: BillingInterval }) {
   const [createOrg, { isLoading }] = useCreateOrganizationMutation();
 
   const form = useForm({
@@ -21,7 +20,7 @@ export default function OrganizationCreationForm({ selectedPlanId }: { selectedP
     defaultValues: {
       name: "",
       planId: "",
-      billingInterval: BillingInterval.MONTHLY,
+      billingInterval: planInterval,
     },
   });
 
@@ -34,18 +33,15 @@ export default function OrganizationCreationForm({ selectedPlanId }: { selectedP
     try {
       await createOrg(values).unwrap();
       toast.success("Organization created successfully!");
+
     } catch (err) {
       toast.error("Could not create organization");
     }
   }
 
   return (
-    <section className="w-full lg:w-[40%] border-r pr-8 border-border/50">
+    <section className="w-full lg:w-[30%] border-r pr-8 border-border/50">
       <div className="space-y-6">
-        <div className="flex items-center gap-2 text-foreground font-semibold">
-          <span>General Details</span>
-        </div>
-
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
             <FormField
@@ -66,25 +62,6 @@ export default function OrganizationCreationForm({ selectedPlanId }: { selectedP
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="billingInterval"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-base">Billing Cycle</FormLabel>
-                  <FormControl>
-                    <Tabs onValueChange={field.onChange} defaultValue={field.value} className="w-full">
-                      <TabsList className="grid w-full grid-cols-2 h-12">
-                        <TabsTrigger value={BillingInterval.MONTHLY}>Monthly</TabsTrigger>
-                        <TabsTrigger value={BillingInterval.YEARLY}>Yearly (Save 20%)</TabsTrigger>
-                      </TabsList>
-                    </Tabs>
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-
-            {/* Error message if plan isn't selected */}
             {!selectedPlanId && form.formState.isSubmitted && (
               <div className="p-3 bg-destructive/10 text-destructive rounded-lg text-sm flex items-center gap-2">
                 <Loader2 className="h-4 w-4" /> Please select a plan from the list.
@@ -97,7 +74,7 @@ export default function OrganizationCreationForm({ selectedPlanId }: { selectedP
               disabled={isLoading || !selectedPlanId}
             >
               {isLoading ? <Loader2 className="animate-spin mr-2" /> : null}
-              Launch Organization
+              Create Organization
             </Button>
           </form>
         </Form>

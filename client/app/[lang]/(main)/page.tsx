@@ -8,8 +8,7 @@ import Footer from "@/components/landing/footer";
 export default function Page() {
   return (
     <div className="">
-      <Header />
-      <main className="space-y-32">
+      <main className="space-y-16">
         <Hero />
         <Services />
         <About />

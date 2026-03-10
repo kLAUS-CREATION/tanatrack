@@ -66,7 +66,7 @@ export function FeatureTable({ data }: { data: IFeature[] }) {
   });
 
   return (
-    <div className="rounded-md border">
+    <div className="rounded-xs border">
       <Table>
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (

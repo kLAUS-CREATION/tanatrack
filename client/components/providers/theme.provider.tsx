@@ -1,20 +1,12 @@
 "use client";
 
 import React from "react";
-import { useSelector } from "react-redux";
-import { RootState } from "@/lib/features/store";
+import { ThemeProvider as NextThemesProvider } from "next-themes";
+import type { ThemeProviderProps } from "next-themes";
 
 export default function ThemeProvider({
   children,
-}: {
-  children: React.ReactNode;
-}) {
-  const isDarkMode = useSelector((state: RootState) => state.theme.isDark);
-  return (
-    <div
-      className={`${isDarkMode ? "dark" : ""}`}
-    >
-      {children}
-    </div>
-  );
+  ...props
+}: ThemeProviderProps) {
+  return <NextThemesProvider {...props}>{children}</NextThemesProvider>;
 }

@@ -18,7 +18,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${inter.variable} ${clash.variable} ${satoshi.variable} dark`}
+        className={`${inter.variable} ${clash.variable} ${satoshi.variable}`}
       >
         <AppProviders>
           <div className="bg-background text-foreground">

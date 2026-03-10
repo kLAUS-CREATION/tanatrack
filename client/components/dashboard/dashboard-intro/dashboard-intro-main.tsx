@@ -5,11 +5,8 @@ import Link from "next/link";
 import {
   Building2,
   ChevronRight,
-  Plus,
   ShieldCheck,
-  Calendar,
   Clock,
-  Sparkles,
   LayoutDashboard
 } from "lucide-react";
 import { useGetSessionQuery } from "@/lib/features/services/auth.api";
@@ -34,17 +31,22 @@ export default function DashboardIntroMain() {
   };
 
   return (
-    <main className="w-[98%] lg:w-[95%] mx-auto h-full overflow-y-auto space-y-2 custom-scrollbar">
+    <main className="w-[98%] lg:w-[95%] mx-auto overflow-y-auto space-y-2 custom-scrollbar">
 
-      <section className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 bg-background2 py-3">
-        <div className="space-y-1 border w-full p-2 lg:p-3 rounded-lg">
-          <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-4">
-            <span className="text-3xl lg:text-4xl font-satoshi font-bold tracking-[1px]">Welcome Back</span>
-          </div>
-          <h1 className="text-xl lg:text-2xl tracking-tight text-foreground-secondary font-medium">
-            {user?.name || "Member"}
-          </h1>
-        </div>
+      <section className="bg-linear-to-r from-primary/3 to-secondary/5 dark:from-primary/1 dark:to-secondary/2 flex flex-col md:flex-row justify-between items-center gap-4 bg-background2 p-2 border ">
+        <div className="">
+        <h1 className="text-xl lg:text-2xl font-normal mb-2 tracking-[1px] text-foreground-secondary">
+          Welcome back,{" "}
+          <span className="text-foreground font-bold">{user?.name || "Our Customer"}</span>! 👋
+        </h1>
+        <p className="text-muted-foreground">
+          Manage All Your business workspaces in one place.
+        </p>
+      </div>
+
+        <Link href={'/organizations/new'}>
+            <Button className="size-full"> New organization </Button>
+        </Link>
       </section>
 
       <section>
@@ -121,16 +123,16 @@ export default function DashboardIntroMain() {
           </div>
         ) : (
           /* EMPTY STATE */
-          <div className="flex flex-col items-center justify-center py-20 bg-muted/20 rounded-[3rem] border-2 border-dashed border-border">
+          <div className="flex flex-col items-center justify-center py-20  rounded-xs">
             <div className="h-20 w-20 bg-background rounded-3xl flex items-center justify-center shadow-inner mb-6">
               <Building2 className="h-10 w-10 text-muted-foreground" />
             </div>
             <h2 className="text-2xl font-bold">No organizations found</h2>
-            <p className="text-muted-foreground max-w-xs text-center mt-2">
+            <p className="text-muted-foreground max-w-xl text-center mt-2">
               You haven't created any workspaces yet. Start by creating one to manage your business.
             </p>
             <Link href="/dashboard/new" className="mt-8">
-              <Button size="lg" className="rounded-full px-8">
+              <Button size="lg">
                 Get Started
               </Button>
             </Link>

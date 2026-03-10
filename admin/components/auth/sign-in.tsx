@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { formSchema } from "@/lib/validations/login.validation";
 import { useSignInMutation } from "@/lib/features/services/auth.api"; // Ensure this path matches your file structure
@@ -30,6 +30,8 @@ export function SignIn() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get('redirect') || undefined;
 
   // RTK Query Mutation Hook
   const [signIn, { isLoading }] = useSignInMutation();
@@ -52,7 +54,11 @@ export function SignIn() {
         password: values.password,
       }).unwrap();
 
-      router.push("/dashboard");
+      if (redirect) {
+        router.push(redirect);
+      } else {
+        router.push("/organizations");
+      }
     } catch (error: any) {
       console.error("Login failed:", error);
       // RTK Query errors are usually structured as error.data.message

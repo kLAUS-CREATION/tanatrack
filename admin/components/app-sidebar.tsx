@@ -11,6 +11,8 @@ import {
   SidebarHeader,
   SidebarRail,
 } from "@/components/ui/sidebar"
+import Logo from "./shared/logo"
+import { useGetSessionQuery } from "@/lib/features/services/auth.api"
 
 const user =  {
     name: "shadcn",
@@ -50,18 +52,23 @@ const adminSidebarLinks: IAdminSidebarLinks[] = [
     },
 ]
 
-
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { data: user, isLoading: isUserLoading } = useGetSessionQuery();
+
+  if (!user && !isUserLoading) return null;
+
   return (
-    <Sidebar collapsible="offcanvas" {...props} className="bg-background2">
-      <SidebarHeader>
-        <AdminDashboardHeader />
+    <Sidebar collapsible="offcanvas" variant="sidebar" {...props}>
+      <SidebarHeader className="h-14 border-b border-sidebar-border/40 px-4 flex justify-center">
+        <Logo />
       </SidebarHeader>
-      <SidebarContent>
+
+      <SidebarContent className="py-4">
         <NavMain items={adminSidebarLinks} />
       </SidebarContent>
-      <SidebarFooter>
-        <NavUser user={user} />
+
+      <SidebarFooter className="border-t border-sidebar-border/40 p-2">
+        <NavUser />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

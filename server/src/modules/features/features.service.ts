@@ -48,13 +48,24 @@ export class FeaturesService {
     id: string,
     updateDto: Partial<CreateFeatureDto>,
   ): Promise<Feature> {
-    return this.prisma.feature.update({
+    const feature = this.prisma.feature.update({
       where: { id },
       data: updateDto,
     });
+
+    if (!feature) {
+      throw new Error('Feature not found');
+    }
+
+    return feature;
   }
 
   async remove(id: string): Promise<Feature> {
+    const feature = this.prisma.feature.findUnique({ where: { id } });
+
+    if (!feature) {
+        throw new Error('Feature not found');
+    }
     return this.prisma.feature.delete({ where: { id } });
   }
 }

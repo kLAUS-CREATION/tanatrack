@@ -2,20 +2,32 @@ import React from "react";
 import { useGetPlansQuery } from "@/lib/features/services/plans.api";
 import { Check, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BillingInterval } from "@/types/organization";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface PlansSelectionProps {
   selectedPlanId: string;
+  planInterval: BillingInterval;
   onSelect: (id: string) => void;
+  onUpdatePlanInterval: (planInterval: BillingInterval) => void;
 }
 
-export default function PlansSelection({ selectedPlanId, onSelect }: PlansSelectionProps) {
+export default function PlansSelection({ selectedPlanId, onSelect, planInterval, onUpdatePlanInterval }: PlansSelectionProps) {
   const { data: plans, isLoading } = useGetPlansQuery();
 
   if (isLoading) return <div className="w-full flex justify-center py-20"><Zap className="animate-spin text-primary" /></div>;
 
   return (
-    <section className="w-full lg:w-[60%] px-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <section className="w-full lg:w-[70%] space-y-5">
+      <div>
+         <Tabs  defaultValue={BillingInterval.MONTHLY} className="w-[80%] lg:w-[50%] 2xl:w-[40%]">
+            <TabsList className="grid w-full grid-cols-2 h-12">
+                <TabsTrigger onClick={ () => onUpdatePlanInterval(BillingInterval.MONTHLY)} value={BillingInterval.MONTHLY}>Monthly</TabsTrigger>
+                <TabsTrigger onClick={ () => onUpdatePlanInterval(BillingInterval.YEARLY)} value={BillingInterval.YEARLY}>Yearly (Save 20%)</TabsTrigger>
+            </TabsList>
+         </Tabs>
+      </div>
+      <div className="flex gap-3 overflow-x-auto">
         {plans?.filter(p => p.isPublic && p.isActive).map((plan) => {
           const isSelected = selectedPlanId === plan.id;
 
@@ -24,19 +36,13 @@ export default function PlansSelection({ selectedPlanId, onSelect }: PlansSelect
               key={plan.id}
               onClick={() => onSelect(plan.id)}
               className={cn(
-                "relative cursor-pointer rounded-2xl border-2 p-5 transition-all duration-300",
-                "hover:shadow-md hover:border-primary/50",
+                "relative cursor-pointer rounded-lg border-1 p-5 transition-all duration-300 w-[50%] lg:w-[33%] 2xl:w-[24%]",
+                "hover:shadow-md hover:border-foreground-secondary",
                 isSelected
-                  ? "border-primary bg-primary/5 shadow-inner ring-1 ring-primary"
+                  ? "border-foreground/80 bg-primary/2 dark:bg-primary/3 shadow-inner ring-1 ring-primary/40"
                   : "border-border bg-background"
               )}
             >
-              {isSelected && (
-                <div className="absolute -top-2 -right-2 bg-primary text-white rounded-full p-1 shadow-lg">
-                  <Check className="h-4 w-4" />
-                </div>
-              )}
-
               <div className="flex justify-between items-start mb-3">
                 <div>
                   <h3 className="font-bold text-lg">{plan.name}</h3>
@@ -50,8 +56,8 @@ export default function PlansSelection({ selectedPlanId, onSelect }: PlansSelect
               </div>
 
               <div className="mb-4">
-                <span className="text-2xl font-black">{plan.currency} {plan.monthlyPrice}</span>
-                <span className="text-muted-foreground text-xs ml-1">/month</span>
+                <span className="text-2xl font-black">{plan.currency} {planInterval === BillingInterval.MONTHLY ? plan.monthlyPrice : plan.yearlyPrice}</span>
+                <span className="text-muted-foreground text-xs ml-1">{ planInterval === BillingInterval.MONTHLY ? BillingInterval.MONTHLY : BillingInterval.YEARLY }</span>
               </div>
 
               <ul className="space-y-2">

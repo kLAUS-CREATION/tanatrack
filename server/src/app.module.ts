@@ -12,13 +12,18 @@ import { MailerModule } from '@nestjs-modules/mailer';
 import configuration from './config/env.config';
 import { envValidationSchema } from './common/validation/env.validation';
 import { auth } from './lib/auth';
-import { MailService } from './modules/mail/mail.service';
 import { MailModule } from './modules/mail/mail.module';
 import { PlanModule } from './modules/plan/plan.module';
 import { FeaturesController } from './modules/features/features.controller';
 import { FeaturesService } from './modules/features/features.service';
 import { FeaturesModule } from './modules/features/features.module';
 import { OrganizationModule } from './modules/organization/organization.module';
+import { ScheduleModule } from './modules/schedule/schedule.module';
+import { ProductsModule } from './modules/core/products/products.module';
+import { InventoryService } from './modules/core/inventory/inventory.service';
+import { InventoryModule } from './modules/core/inventory/inventory.module';
+import { MembershipController } from './modules/core/membership/membership.controller';
+import { MembershipModule } from './modules/core/membership/membership.module';
 
 @Module({
   imports: [
@@ -55,9 +60,13 @@ import { OrganizationModule } from './modules/organization/organization.module';
     PlanModule,
     FeaturesModule,
     OrganizationModule,
+    ScheduleModule,
+    ProductsModule,
+    InventoryModule,
+    MembershipModule,
   ],
 
-  controllers: [AppController, FeaturesController],
-  providers: [AppService, MailService, FeaturesService],
+  controllers: [AppController, FeaturesController, MembershipController],
+  providers: [AppService, FeaturesService, InventoryService],
 })
 export class AppModule { }

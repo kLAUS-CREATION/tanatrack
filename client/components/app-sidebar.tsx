@@ -1,21 +1,7 @@
 "use client"
 
 import * as React from "react"
-import {
-  AudioWaveform,
-  BookOpen,
-  Bot,
-  Command,
-  Frame,
-  GalleryVerticalEnd,
-  Map,
-  PieChart,
-  Settings2,
-  SquareTerminal,
-} from "lucide-react"
-
 import { NavMain } from "@/components/nav-main"
-import { NavProjects } from "@/components/nav-projects"
 import { NavUser } from "@/components/nav-user"
 import { OrganizationSwitcher } from "@/components/team-switcher"
 import {
@@ -25,170 +11,39 @@ import {
   SidebarHeader,
   SidebarRail,
 } from "@/components/ui/sidebar"
+import { useGetSessionQuery } from "@/lib/features/services/auth.api"
 
-// This is sample data.
-const data = {
-  user: {
-    name: "Klaus Mikaelson",
-    email: "klaus@gmail.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
-  teams: [
-    {
-      name: "Acme Inc",
-      logo: GalleryVerticalEnd,
-      plan: "Enterprise",
-    },
-    {
-      name: "Acme Corp.",
-      logo: AudioWaveform,
-      plan: "Startup",
-    },
-    {
-      name: "Evil Corp.",
-      logo: Command,
-      plan: "Free",
-    },
-  ],
-  navMain: [
-    {
-      title: "Playground",
-      url: "#",
-      icon: SquareTerminal,
-      isActive: true,
-      items: [
-        {
-          title: "History",
-          url: "#",
-        },
-        {
-          title: "Starred",
-          url: "#",
-        },
-        {
-          title: "Settings",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Models",
-      url: "#",
-      icon: Bot,
-      items: [
-        {
-          title: "Genesis",
-          url: "#",
-        },
-        {
-          title: "Explorer",
-          url: "#",
-        },
-        {
-          title: "Quantum",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Documentation",
-      url: "#",
-      icon: BookOpen,
-      items: [
-        {
-          title: "Introduction",
-          url: "#",
-        },
-        {
-          title: "Get Started",
-          url: "#",
-        },
-        {
-          title: "Tutorials",
-          url: "#",
-        },
-        {
-          title: "Changelog",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Settings",
-      url: "#",
-      icon: Settings2,
-      items: [
-        {
-          title: "General",
-          url: "#",
-        },
-        {
-          title: "Team",
-          url: "#",
-        },
-        {
-          title: "Billing",
-          url: "#",
-        },
-        {
-          title: "Limits",
-          url: "#",
-        },
-      ],
-    },
-  ],
-  projects: [
-    {
-      name: "Design Engineering",
-      url: "#",
-      icon: Frame,
-    },
-    {
-      name: "Sales & Marketing",
-      url: "#",
-      icon: PieChart,
-    },
-    {
-      name: "Travel",
-      url: "#",
-      icon: Map,
-    },
-  ],
-}
-
-const organizations = [
-    {
-      name: "Nora Food Complex",
-      logo: GalleryVerticalEnd,
-      plan: "Enterprise",
-      id: "123"
-    },
-    {
-      name: "Harer Beer",
-      logo: AudioWaveform,
-      plan: "Pro Plan",
-      id: "234"
-    },
-    {
-      name: "Lora Restaurant",
-      logo: Command,
-      plan: "Pro Plan",
-      id: "898"
-    },
-]
-
+const dashboardLinks = [
+  { title: "Dashboard", link: "/" },
+  { title: "Products", link: "/products" },
+  { title: "Inventory", link: "/inventory" },
+  { title: "Suppliers", link: "/suppliers" },
+  { title: "Customers", link: "/customers" },
+  { title: "Purchases", link: "/purchases" },
+  { title: "Sales", link: "/sales" },
+  { title: "Warehouses", link: "/warehouses" },
+  { title: "Reports", link: "/reports" },
+  { title: "AI Chat", link: "/ai" },
+  { title: "Settings", link: "/settings" },
+  { title: "Help", link: "/help" },
+];
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { data: user, isLoading: isUserLoading } = useGetSessionQuery();
+
+  if (!user && !isUserLoading) return null;
+
   return (
-    <Sidebar collapsible="offcanvas" {...props} variant="sidebar" >
-      <SidebarHeader>
-        <OrganizationSwitcher organizations={organizations} />
+    <Sidebar collapsible="offcanvas" variant="sidebar" {...props}>
+      <SidebarHeader className="h-14 border-b border-sidebar-border/40 px-4 flex justify-center">
+        <OrganizationSwitcher />
       </SidebarHeader>
-      <SidebarContent>
-        <NavMain items={data.navMain} />
-        <NavProjects projects={data.projects} />
+
+      <SidebarContent className="py-4">
+        <NavMain items={dashboardLinks} />
       </SidebarContent>
-      <SidebarFooter>
-        <NavUser user={data.user} />
+
+      <SidebarFooter className="border-t border-sidebar-border/40 p-2">
+        <NavUser />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

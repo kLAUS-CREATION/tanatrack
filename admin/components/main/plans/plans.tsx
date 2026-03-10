@@ -50,16 +50,8 @@ export default function PlansPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="create" className="animate-in slide-in-from-bottom-2 duration-300">
-          <div className="w-full flex flex-col gap-4 lg:gap-6">
-            <div className="border-b py-2">
-              <h2 className="text-2xl">Add New Pricing Tier</h2>
-              <p className="text-foreground-secondary">Setup a new plan for your customers</p>
-            </div>
-            <div className="">
-              <CreatePlanForm onSuccess={() => setActiveTab("list")} />
-            </div>
-          </div>
+        <TabsContent value="create" className="animate-in slide-in-from-bottom-2 duration-300 w-full flex flex-col gap-4 lg:gap-6">
+            <CreatePlanForm onSuccess={() => setActiveTab("list")} />
         </TabsContent>
       </Tabs>
     </div>

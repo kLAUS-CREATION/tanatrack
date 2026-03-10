@@ -1,28 +1,30 @@
 "use client";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useDispatch, useSelector } from "react-redux";
-import { RootState } from "@/lib/features/store";
-import { setTheme } from "@/lib/features/slices/theme.slice";
+import { useTheme } from "next-themes";
 
 export default function ThemeToggle() {
-  const dispatch = useDispatch();
-  const isDarkMode = useSelector((state: RootState) => state.theme.isDark);
+  const [mounted, setMounted] = useState(false);
+  const { theme, setTheme } = useTheme();
 
+  // useEffect only runs on the client, so now we can safely show the UI
   useEffect(() => {
-    const storedTheme = localStorage.getItem("theme");
-    if (storedTheme !== null) {
-      const theme = JSON.parse(storedTheme);
-      dispatch(setTheme(theme));
-    }
-    console.log("this is stored Theme: ", storedTheme);
-  }, [dispatch]);
+    setMounted(true);
+  }, []);
 
+  if (!mounted) {
+    return (
+      <Button variant="ghost" size="icon" className="text-foreground-secondary">
+        <Sun className="size-6 opacity-0" />
+      </Button>
+    );
+  }
+
+  const isDarkMode = theme === "dark";
 
   const toggleTheme = () => {
-    dispatch(setTheme(!isDarkMode));
-    localStorage.setItem("theme", JSON.stringify(!isDarkMode));
+    setTheme(isDarkMode ? "light" : "dark");
   };
 
   return (
@@ -30,7 +32,7 @@ export default function ThemeToggle() {
       onClick={toggleTheme}
       variant="ghost"
       size="icon"
-      aria-label="Toggle theme "
+      aria-label="Toggle theme"
       className="text-foreground-secondary"
     >
       {isDarkMode ? (
