@@ -1,0 +1,286 @@
+"use client";
+
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Loader2, Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { formatMoney } from "@/lib/utils";
+import { IProduct } from "@/lib/features/services/product.api";
+import { IBranch } from "@/lib/features/services/branch.api";
+import { IWarehouse } from "@/lib/features/services/warehouse.api";
+import {
+  PurchaseItemInput,
+  useCreatePurchaseMutation,
+} from "@/lib/features/services/purchase.api";
+import {
+  LocationOptions,
+  decodeLocation,
+} from "@/components/dashboard/inventory/stock-op-dialog";
+
+const toMinor = (n: number) => Math.round(n * 100);
+
+interface Line {
+  variantId: string;
+  quantity: number;
+  unitCost: number; // major units in the form
+}
+
+interface NewPurchaseDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  orgId: string;
+  products: IProduct[];
+  branches: IBranch[];
+  warehouses: IWarehouse[];
+}
+
+export function NewPurchaseDialog({
+  isOpen,
+  onClose,
+  orgId,
+  products,
+  branches,
+  warehouses,
+}: NewPurchaseDialogProps) {
+  const [location, setLocation] = useState("");
+  const [supplierName, setSupplierName] = useState("");
+  const [reference, setReference] = useState("");
+  const [lines, setLines] = useState<Line[]>([
+    { variantId: "", quantity: 1, unitCost: 0 },
+  ]);
+
+  const [createPurchase, { isLoading }] = useCreatePurchaseMutation();
+
+  useEffect(() => {
+    if (isOpen) {
+      setLocation("");
+      setSupplierName("");
+      setReference("");
+      setLines([{ variantId: "", quantity: 1, unitCost: 0 }]);
+    }
+  }, [isOpen]);
+
+  // variantId -> { label, cost(major) }
+  const variantMap = useMemo(() => {
+    const map = new Map<string, { label: string; cost: number }>();
+    products.forEach((p) =>
+      (p.variants ?? []).forEach((v) =>
+        map.set(v.id, {
+          label: `${p.name} — ${v.name} (${v.sku})`,
+          cost: v.costPrice / 100,
+        }),
+      ),
+    );
+    return map;
+  }, [products]);
+
+  const total = lines.reduce(
+    (sum, l) => sum + l.unitCost * (l.quantity || 0),
+    0,
+  );
+
+  const updateLine = (idx: number, patch: Partial<Line>) =>
+    setLines((prev) => prev.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
+
+  // When picking a variant, prefill the unit cost from the catalog cost price.
+  const pickVariant = (idx: number, variantId: string) => {
+    const cost = variantMap.get(variantId)?.cost ?? 0;
+    updateLine(idx, { variantId, unitCost: cost });
+  };
+
+  const handleSubmit = async () => {
+    if (!location) {
+      toast.error("Select a destination location");
+      return;
+    }
+    const items: PurchaseItemInput[] = lines
+      .filter((l) => l.variantId && l.quantity > 0)
+      .map((l) => ({
+        variantId: l.variantId,
+        quantity: l.quantity,
+        unitCost: toMinor(l.unitCost || 0),
+      }));
+    if (items.length === 0) {
+      toast.error("Add at least one item");
+      return;
+    }
+    try {
+      await createPurchase({
+        orgId,
+        body: {
+          ...decodeLocation(location),
+          supplierName: supplierName || undefined,
+          reference: reference || undefined,
+          items,
+        },
+      }).unwrap();
+      toast.success("Purchase recorded — stock received");
+      onClose();
+    } catch (error: any) {
+      toast.error(error?.data?.message || "Failed to record purchase");
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[680px] max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>New Purchase</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-2">
+              <Label>Receive into</Label>
+              <Select value={location} onValueChange={setLocation}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Location" />
+                </SelectTrigger>
+                <SelectContent>
+                  <LocationOptions branches={branches} warehouses={warehouses} />
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Supplier</Label>
+              <Input
+                value={supplierName}
+                onChange={(e) => setSupplierName(e.target.value)}
+                placeholder="Optional"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Reference / Invoice #</Label>
+              <Input
+                value={reference}
+                onChange={(e) => setReference(e.target.value)}
+                placeholder="Optional"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>Items</Label>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() =>
+                  setLines((prev) => [
+                    ...prev,
+                    { variantId: "", quantity: 1, unitCost: 0 },
+                  ])
+                }
+              >
+                <Plus className="h-4 w-4 mr-1" /> Add item
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-12 gap-2 px-1 text-xs text-muted-foreground">
+              <span className="col-span-6">Product</span>
+              <span className="col-span-2">Qty</span>
+              <span className="col-span-2">Unit cost</span>
+              <span className="col-span-2 text-right">Line</span>
+            </div>
+
+            {lines.map((line, idx) => (
+              <div
+                key={idx}
+                className="grid grid-cols-12 gap-2 items-center rounded-sm border border-border p-2"
+              >
+                <div className="col-span-6">
+                  <Select
+                    value={line.variantId}
+                    onValueChange={(v) => pickVariant(idx, v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select product" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from(variantMap.entries()).map(([id, v]) => (
+                        <SelectItem key={id} value={id}>
+                          {v.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="col-span-2">
+                  <Input
+                    type="number"
+                    min={1}
+                    value={line.quantity}
+                    onChange={(e) =>
+                      updateLine(idx, { quantity: Number(e.target.value) })
+                    }
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    value={line.unitCost}
+                    onChange={(e) =>
+                      updateLine(idx, { unitCost: Number(e.target.value) })
+                    }
+                  />
+                </div>
+                <div className="col-span-1 text-right text-sm">
+                  {formatMoney(toMinor(line.unitCost * (line.quantity || 0)))}
+                </div>
+                <div className="col-span-1 flex justify-end">
+                  {lines.length > 1 && (
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="text-destructive h-7 w-7"
+                      onClick={() =>
+                        setLines((prev) => prev.filter((_, i) => i !== idx))
+                      }
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex items-center justify-between border-t border-border pt-3">
+            <span className="font-medium">Total cost</span>
+            <span className="text-lg font-semibold">
+              {formatMoney(toMinor(total))}
+            </span>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={handleSubmit} disabled={isLoading}>
+            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Record Purchase
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
