@@ -3,13 +3,14 @@ import {
   Post,
   Get,
   Put,
+  Patch,
   Body,
   Param,
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
 import { OrganizationService } from './organization.service';
-import { CreateOrganizationDto, UpgradePlanDto } from './dto/organization.dto';
+import { CreateOrganizationDto, UpgradePlanDto, UpdateOrganizationDto } from './dto/organization.dto';
 import { Session } from '@thallesp/nestjs-better-auth';
 import type { UserSession } from '@thallesp/nestjs-better-auth';
 
@@ -34,6 +35,16 @@ export class OrganizationController {
   @Get(':id')
   async findOne(@Param('id') id: string, @Session() session: UserSession) {
     return this.orgService.findOne(id, session.user.id);
+  }
+
+  @Patch(':id')
+  @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
+  async update(
+    @Param('id') id: string,
+    @Session() session: UserSession,
+    @Body() dto: UpdateOrganizationDto,
+  ) {
+    return this.orgService.update(id, session.user.id, dto);
   }
 
   @Put(':id/upgrade')

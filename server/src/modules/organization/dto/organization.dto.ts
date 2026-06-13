@@ -1,5 +1,5 @@
 import { IsString, IsEnum, IsNotEmpty, IsOptional } from 'class-validator';
-import { BillingInterval } from 'generated/prisma/enums';
+import { BillingInterval } from '@prisma/client';
 
 export class CreateOrganizationDto {
   @IsString()
@@ -19,4 +19,20 @@ export class UpgradePlanDto {
   @IsString()
   @IsNotEmpty()
   newPlanId: string;
+}
+
+/** Owner-only edit of core organization info. */
+export class UpdateOrganizationDto {
+  @IsString()
+  @IsNotEmpty()
+  @IsOptional()
+  name?: string;
+
+  @IsString()
+  @IsOptional()
+  logoUrl?: string;
+
+  @IsString()
+  @IsOptional()
+  timeZone?: string;
 }

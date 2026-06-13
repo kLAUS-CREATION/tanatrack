@@ -1,13 +1,13 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateOrganizationDto, UpgradePlanDto } from './dto/organization.dto';
+import { CreateOrganizationDto, UpgradePlanDto, UpdateOrganizationDto } from './dto/organization.dto';
 import {
   OrganizationRole,
   SubscriptionStatus,
   PlanType,
   InvoiceStatus,
   BillingInterval,
-} from '../../../generated/prisma/client';
+} from '@prisma/client';
 import { MembershipService } from '../core/membership/membership.service';
 
 @Injectable()
@@ -258,10 +258,21 @@ export class OrganizationService {
 
   // Handle Finding All the Organizations For the User
   async findAllForUser(userId: string) {
-    return this.prisma.organization.findMany({
+    const organizations = await this.prisma.organization.findMany({
       where: { memberships: { some: { userId } } },
-      include: { subscription: { include: { plan: true } } }
+      include: {
+        subscription: { include: { plan: true } },
+        // Only the current user's membership, so we can expose their role per org.
+        memberships: { where: { userId }, select: { roleType: true } },
+      },
     });
+
+    // Flatten the single membership into a `roleType` field the client can use to
+    // separate organizations the user owns from ones they were invited to.
+    return organizations.map(({ memberships, ...org }) => ({
+      ...org,
+      roleType: memberships[0]?.roleType ?? null,
+    }));
   }
 
   // Handle Finding One Organization
@@ -279,9 +290,28 @@ export class OrganizationService {
     return org;
   }
 
+  /** Owner-only update of core organization info (name, logo, timezone). */
+  async update(orgId: string, userId: string, dto: UpdateOrganizationDto) {
+    const membership = await this.prisma.membership.findUnique({
+      where: { userId_organizationId: { userId, organizationId: orgId } },
+    });
+    if (membership?.roleType !== OrganizationRole.OWNER) {
+      throw new ForbiddenException('Only the owner can edit organization settings');
+    }
+
+    return this.prisma.organization.update({
+      where: { id: orgId },
+      data: {
+        name: dto.name,
+        logoUrl: dto.logoUrl,
+        timeZone: dto.timeZone,
+      },
+    });
+  }
+
     // Getting all the users under the Organizations
     async getOrgMembers(orgId: string, userId: string) {
-        await this.perm.verifyAccess(userId, orgId, 'USERS_VIEW');
+        await this.perm.verifyAccess(userId, orgId, 'ADMINISTRATION_ACCESS');
 
         const members =  await this.prisma.membership.findMany({
             where: { organizationId: orgId },
