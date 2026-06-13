@@ -1,4 +1,7 @@
 -- CreateEnum
+CREATE TYPE "PermissionScope" AS ENUM ('GLOBAL', 'LOCAL');
+
+-- CreateEnum
 CREATE TYPE "InviteStatus" AS ENUM ('PENDING', 'ACCEPTED', 'DECLINED', 'EXPIRED');
 
 -- CreateEnum
@@ -11,7 +14,7 @@ CREATE TYPE "PlanType" AS ENUM ('FREE', 'PAID');
 CREATE TYPE "FeatureType" AS ENUM ('BOOLEAN', 'NUMBER', 'LIST');
 
 -- CreateEnum
-CREATE TYPE "FeatureCategory" AS ENUM ('AI', 'INVENTORY', 'PRODUCTS', 'SALES', 'WAREHOUSING', 'ORDERS', 'PURCHASE', 'SUPPLIERS', 'REPORTS', 'CUSTOMERS', 'USERS', 'HELP');
+CREATE TYPE "FeatureCategory" AS ENUM ('AI', 'INVENTORY', 'PRODUCTS', 'SALES', 'WAREHOUSING', 'BRANCHES', 'ORDERS', 'PURCHASE', 'SUPPLIERS', 'REPORTS', 'CUSTOMERS', 'USERS', 'HELP');
 
 -- CreateEnum
 CREATE TYPE "SubscriptionStatus" AS ENUM ('ACTIVE', 'ONFREETRIAL', 'PENDING', 'EXPIRED', 'CANCELED');
@@ -21,6 +24,9 @@ CREATE TYPE "BillingInterval" AS ENUM ('MONTHLY', 'YEARLY');
 
 -- CreateEnum
 CREATE TYPE "InvoiceStatus" AS ENUM ('DRAFT', 'OPEN', 'PAID', 'VOID', 'UNCOLLECTIBLE');
+
+-- CreateEnum
+CREATE TYPE "BranchType" AS ENUM ('OFFICE', 'RETAIL', 'SHOWROOM', 'VIRTUAL');
 
 -- CreateTable
 CREATE TABLE "user" (
@@ -32,7 +38,7 @@ CREATE TABLE "user" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "role" TEXT NOT NULL DEFAULT 'USER',
-    "banned" BOOLEAN,
+    "banned" BOOLEAN DEFAULT false,
     "banReason" TEXT,
     "banExpires" TIMESTAMP(3),
 
@@ -91,9 +97,10 @@ CREATE TABLE "organization" (
     "name" TEXT NOT NULL,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "logoUrl" TEXT,
-    "timeZone" TEXT,
+    "timeZone" TEXT NOT NULL DEFAULT 'UTC',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "deletedAt" TIMESTAMP(3),
     "metadata" JSONB,
 
     CONSTRAINT "organization_pkey" PRIMARY KEY ("id")
@@ -118,6 +125,7 @@ CREATE TABLE "permission_definition" (
     "description" TEXT NOT NULL DEFAULT '',
     "category" "FeatureCategory" NOT NULL,
     "action" TEXT NOT NULL,
+    "scope" "PermissionScope" NOT NULL,
 
     CONSTRAINT "permission_definition_pkey" PRIMARY KEY ("id")
 );
@@ -137,26 +145,65 @@ CREATE TABLE "membership" (
     "userId" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "roleId" TEXT,
+    "roleType" "OrganizationRole" NOT NULL DEFAULT 'ADMIN',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "roleType" "OrganizationRole" NOT NULL DEFAULT 'ADMIN',
 
     CONSTRAINT "membership_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "invite" (
+CREATE TABLE "branch" (
     "id" TEXT NOT NULL,
-    "email" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "code" TEXT,
+    "address" TEXT,
+    "city" TEXT,
+    "phone" TEXT,
+    "email" TEXT,
+    "type" "BranchType" NOT NULL DEFAULT 'RETAIL',
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "branch_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "branch_member" (
+    "id" TEXT NOT NULL,
+    "membershipId" TEXT NOT NULL,
+    "branchId" TEXT NOT NULL,
     "roleId" TEXT,
-    "roleType" "OrganizationRole" NOT NULL DEFAULT 'ADMIN',
-    "token" TEXT NOT NULL,
-    "expiresAt" TIMESTAMP(3) NOT NULL,
-    "status" "InviteStatus" NOT NULL DEFAULT 'PENDING',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "invite_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "branch_member_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "warehouse" (
+    "id" TEXT NOT NULL,
+    "organizationId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "code" TEXT,
+    "address" TEXT,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "warehouse_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "warehouse_member" (
+    "id" TEXT NOT NULL,
+    "membershipId" TEXT NOT NULL,
+    "warehouseId" TEXT NOT NULL,
+    "roleId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "warehouse_member_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -235,6 +282,16 @@ CREATE TABLE "subscription" (
 );
 
 -- CreateTable
+CREATE TABLE "subscription_item" (
+    "id" TEXT NOT NULL,
+    "subscriptionId" TEXT NOT NULL,
+    "addOnId" TEXT NOT NULL,
+    "quantity" INTEGER NOT NULL DEFAULT 1,
+
+    CONSTRAINT "subscription_item_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "invoice" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
@@ -246,6 +303,21 @@ CREATE TABLE "invoice" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "invoice_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "invite" (
+    "id" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "organizationId" TEXT NOT NULL,
+    "roleId" TEXT,
+    "roleType" "OrganizationRole" NOT NULL DEFAULT 'ADMIN',
+    "token" TEXT NOT NULL,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "status" "InviteStatus" NOT NULL DEFAULT 'PENDING',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "invite_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -288,10 +360,34 @@ CREATE INDEX "membership_roleId_idx" ON "membership"("roleId");
 CREATE UNIQUE INDEX "membership_userId_organizationId_key" ON "membership"("userId", "organizationId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "invite_token_key" ON "invite"("token");
+CREATE INDEX "branch_organizationId_idx" ON "branch"("organizationId");
 
 -- CreateIndex
-CREATE INDEX "invite_email_idx" ON "invite"("email");
+CREATE UNIQUE INDEX "branch_organizationId_name_key" ON "branch"("organizationId", "name");
+
+-- CreateIndex
+CREATE INDEX "branch_member_membershipId_idx" ON "branch_member"("membershipId");
+
+-- CreateIndex
+CREATE INDEX "branch_member_branchId_idx" ON "branch_member"("branchId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "branch_member_membershipId_branchId_key" ON "branch_member"("membershipId", "branchId");
+
+-- CreateIndex
+CREATE INDEX "warehouse_organizationId_idx" ON "warehouse"("organizationId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "warehouse_organizationId_name_key" ON "warehouse"("organizationId", "name");
+
+-- CreateIndex
+CREATE INDEX "warehouse_member_membershipId_idx" ON "warehouse_member"("membershipId");
+
+-- CreateIndex
+CREATE INDEX "warehouse_member_warehouseId_idx" ON "warehouse_member"("warehouseId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "warehouse_member_membershipId_warehouseId_key" ON "warehouse_member"("membershipId", "warehouseId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "plan_slug_key" ON "plan"("slug");
@@ -315,7 +411,16 @@ CREATE INDEX "subscription_organizationId_idx" ON "subscription"("organizationId
 CREATE INDEX "subscription_planId_idx" ON "subscription"("planId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "subscription_item_subscriptionId_addOnId_key" ON "subscription_item"("subscriptionId", "addOnId");
+
+-- CreateIndex
 CREATE INDEX "invoice_organizationId_idx" ON "invoice"("organizationId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "invite_token_key" ON "invite"("token");
+
+-- CreateIndex
+CREATE INDEX "invite_email_idx" ON "invite"("email");
 
 -- AddForeignKey
 ALTER TABLE "session" ADD CONSTRAINT "session_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -342,7 +447,28 @@ ALTER TABLE "membership" ADD CONSTRAINT "membership_roleId_fkey" FOREIGN KEY ("r
 ALTER TABLE "membership" ADD CONSTRAINT "membership_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "invite" ADD CONSTRAINT "invite_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "branch" ADD CONSTRAINT "branch_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "branch_member" ADD CONSTRAINT "branch_member_membershipId_fkey" FOREIGN KEY ("membershipId") REFERENCES "membership"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "branch_member" ADD CONSTRAINT "branch_member_branchId_fkey" FOREIGN KEY ("branchId") REFERENCES "branch"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "branch_member" ADD CONSTRAINT "branch_member_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "role"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "warehouse" ADD CONSTRAINT "warehouse_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "warehouse_member" ADD CONSTRAINT "warehouse_member_membershipId_fkey" FOREIGN KEY ("membershipId") REFERENCES "membership"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "warehouse_member" ADD CONSTRAINT "warehouse_member_warehouseId_fkey" FOREIGN KEY ("warehouseId") REFERENCES "warehouse"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "warehouse_member" ADD CONSTRAINT "warehouse_member_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "role"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "plan_feature" ADD CONSTRAINT "plan_feature_featureId_fkey" FOREIGN KEY ("featureId") REFERENCES "feature"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -360,7 +486,16 @@ ALTER TABLE "subscription" ADD CONSTRAINT "subscription_organizationId_fkey" FOR
 ALTER TABLE "subscription" ADD CONSTRAINT "subscription_planId_fkey" FOREIGN KEY ("planId") REFERENCES "plan"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "invoice" ADD CONSTRAINT "invoice_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "subscription_item" ADD CONSTRAINT "subscription_item_subscriptionId_fkey" FOREIGN KEY ("subscriptionId") REFERENCES "subscription"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "subscription_item" ADD CONSTRAINT "subscription_item_addOnId_fkey" FOREIGN KEY ("addOnId") REFERENCES "add_on"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "invoice" ADD CONSTRAINT "invoice_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "invoice" ADD CONSTRAINT "invoice_subscriptionId_fkey" FOREIGN KEY ("subscriptionId") REFERENCES "subscription"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "invite" ADD CONSTRAINT "invite_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;

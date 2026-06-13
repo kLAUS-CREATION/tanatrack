@@ -1,5 +1,5 @@
-import { FeatureCategory, FeatureType } from "generated/prisma/enums";
-import { prisma } from "src/lib/prisma";
+import { FeatureCategory, FeatureType } from "@prisma/client";
+import { prisma } from "../src/lib/prisma";
 
 async function main() {
   console.log('🌱 Seeding Inventory Management Features...');
@@ -210,6 +210,22 @@ async function main() {
       description: "Maximum number of customers allowed",
       type: FeatureType.NUMBER,
       category: FeatureCategory.CUSTOMERS
+    },
+
+    // BRANCH & WAREHOUSE LIMITS
+    {
+      key: "max_branches",
+      name: "Maximum Branches",
+      description: "Maximum number of branches allowed in the organization",
+      type: FeatureType.NUMBER,
+      category: FeatureCategory.BRANCHES
+    },
+    {
+      key: "max_warehouses",
+      name: "Maximum Warehouses",
+      description: "Maximum number of warehouses allowed in the organization",
+      type: FeatureType.NUMBER,
+      category: FeatureCategory.WAREHOUSING
     },
 
     // USER FEATURES
