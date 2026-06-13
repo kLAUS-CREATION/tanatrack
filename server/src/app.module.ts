@@ -20,10 +20,16 @@ import { FeaturesModule } from './modules/features/features.module';
 import { OrganizationModule } from './modules/organization/organization.module';
 import { ScheduleModule } from './modules/schedule/schedule.module';
 import { ProductsModule } from './modules/core/products/products.module';
-import { InventoryService } from './modules/core/inventory/inventory.service';
 import { InventoryModule } from './modules/core/inventory/inventory.module';
+import { SalesModule } from './modules/core/sales/sales.module';
+import { PurchasesModule } from './modules/core/purchases/purchases.module';
+import { ReportsModule } from './modules/core/reports/reports.module';
+import { CustomersModule } from './modules/core/customers/customers.module';
+import { SuppliersModule } from './modules/core/suppliers/suppliers.module';
 import { MembershipController } from './modules/core/membership/membership.controller';
 import { MembershipModule } from './modules/core/membership/membership.module';
+import { BranchModule } from './modules/core/branch/branch.module';
+import { WarehouseModule } from './modules/core/warehouse/warehouse.module';
 
 @Module({
   imports: [
@@ -63,10 +69,17 @@ import { MembershipModule } from './modules/core/membership/membership.module';
     ScheduleModule,
     ProductsModule,
     InventoryModule,
+    SalesModule,
+    PurchasesModule,
+    ReportsModule,
+    CustomersModule,
+    SuppliersModule,
     MembershipModule,
+    BranchModule,
+    WarehouseModule,
   ],
 
   controllers: [AppController, FeaturesController, MembershipController],
-  providers: [AppService, FeaturesService, InventoryService],
+  providers: [AppService, FeaturesService],
 })
 export class AppModule { }
