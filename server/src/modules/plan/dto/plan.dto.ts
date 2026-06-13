@@ -1,6 +1,6 @@
 import { IsString, IsInt, IsOptional, IsBoolean, IsArray, ValidateNested, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
-import { PlanType } from 'generated/prisma/enums';
+import { PlanType } from '@prisma/client';
 
 export class PlanFeatureInputDto {
   @IsString()

@@ -5,7 +5,7 @@ import {
   Feature,
   FeatureType,
   FeatureCategory,
-} from '../../../generated/prisma/client';
+} from '@prisma/client';
 
 @Injectable()
 export class FeaturesService {

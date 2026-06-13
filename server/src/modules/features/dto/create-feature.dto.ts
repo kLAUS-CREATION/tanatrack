@@ -1,5 +1,5 @@
 import { IsString, IsNotEmpty, IsOptional, IsEnum } from 'class-validator';
-import { FeatureType, FeatureCategory } from '../../../../generated/prisma/client';
+import { FeatureType, FeatureCategory } from '@prisma/client';
 
 export class CreateFeatureDto {
   @IsString()
