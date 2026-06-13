@@ -1,3 +1,4 @@
+"use client"
 import React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,9 +12,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Building2, Loader2} from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function OrganizationCreationForm({ selectedPlanId , planInterval }: { selectedPlanId: string, planInterval: BillingInterval }) {
   const [createOrg, { isLoading }] = useCreateOrganizationMutation();
+  const router = useRouter();
 
   const form = useForm({
     resolver: zodResolver(createOrgSchema),
@@ -33,6 +36,7 @@ export default function OrganizationCreationForm({ selectedPlanId , planInterval
     try {
       await createOrg(values).unwrap();
       toast.success("Organization created successfully!");
+      router.push("/organizations");
 
     } catch (err) {
       toast.error("Could not create organization");
