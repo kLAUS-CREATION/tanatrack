@@ -214,8 +214,6 @@ export function CreatePlanForm({ onSuccess }: { onSuccess: () => void }) {
                             <FormControl>
                               {featureMeta?.type === FeatureType.BOOLEAN ? (
                                 <div className="flex items-center gap-3 h-10 px-3 border rounded-md bg-secondary/20">
-                                  <CheckSquare className="h-4 w-4 text-muted-foreground" />
-                                  <span className="text-sm flex-1">Enabled</span>
                                   <Switch
                                     checked={field.value === "true"}
                                     onCheckedChange={(val) => field.onChange(val.toString())}

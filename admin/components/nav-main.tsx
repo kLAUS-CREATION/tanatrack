@@ -12,7 +12,6 @@ import {
 
 export function NavMain({ items }: { items: { title: string, link: string }[] }) {
   const pathname = usePathname()
-  console.log("this is the pathname ", pathname.split("/"));
   const orgId = pathname.split("/")[3];
 
   return (
