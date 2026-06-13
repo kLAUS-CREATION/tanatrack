@@ -56,6 +56,22 @@ export const organizationApi = apiSlice.injectEndpoints({
         { type: "Plans", id: "LIST" }
       ],
     }),
+
+    // Owner-only: update core organization info (name, logo, timezone)
+    updateOrganization: builder.mutation<
+      IOrganization,
+      { id: string; body: { name?: string; logoUrl?: string; timeZone?: string } }
+    >({
+      query: ({ id, body }) => ({
+        url: `/organizations/${id}`,
+        method: "PATCH",
+        body,
+      }),
+      invalidatesTags: (_result, _error, { id }) => [
+        { type: "Organizations", id },
+        { type: "Organizations", id: "LIST" },
+      ],
+    }),
   }),
 });
 
@@ -64,4 +80,5 @@ export const {
   useGetOrganizationByIdQuery,
   useCreateOrganizationMutation,
   useUpgradePlanMutation,
+  useUpdateOrganizationMutation,
 } = organizationApi;

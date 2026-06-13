@@ -5,6 +5,20 @@ export enum OrganizationRole {
   ADMIN = 'ADMIN',
 }
 
+export enum PermissionScope {
+  GLOBAL = 'GLOBAL',
+  LOCAL = 'LOCAL',
+}
+
+/**
+ * Whether a role grants org-wide (GLOBAL) or per-location (LOCAL) permissions.
+ * A role's kind is fixed at creation and constrains which permissions it may hold.
+ */
+export enum RoleKind {
+  GLOBAL = 'GLOBAL',
+  LOCAL = 'LOCAL',
+}
+
 export interface IPermissionDefinition {
   id: string;
   slug: string;
@@ -12,6 +26,7 @@ export interface IPermissionDefinition {
   description: string;
   category: string;
   action: string;
+  scope: PermissionScope;
 }
 
 export interface IPermissionCategory {
@@ -22,6 +37,7 @@ export interface IPermissionCategory {
 export interface IRole {
   id: string;
   name: string;
+  kind: RoleKind;
   organizationId: string;
   permissions?: {
     permissionDefinitionId: string;
@@ -32,14 +48,54 @@ export interface IRole {
   };
 }
 
+export interface InviteLocationInput {
+  branchId?: string;
+  warehouseId?: string;
+}
+
 export interface InviteMemberRequest {
   email: string;
-  roleId?: string;
   roleType?: OrganizationRole;
+  roleId?: string;
+  /** Required (>= 1) when roleId is a LOCAL role; ignored otherwise. */
+  locations?: InviteLocationInput[];
+}
+
+export interface ILocationOption {
+  id: string;
+  name: string;
+}
+
+export interface IAssignableLocations {
+  branches: ILocationOption[];
+  warehouses: ILocationOption[];
+}
+
+export interface IMemberLocation {
+  branchMemberId?: string;
+  warehouseMemberId?: string;
+  branchId?: string;
+  branchName?: string;
+  warehouseId?: string;
+  warehouseName?: string;
+  roleId: string | null;
+  roleName: string | null;
+}
+
+export interface IMember {
+  id: string; // membershipId
+  userId: string;
+  roleType: OrganizationRole;
+  roleId: string | null;
+  roleName: string | null;
+  user: { id: string; name: string; email: string; image?: string | null };
+  branches: IMemberLocation[];
+  warehouses: IMemberLocation[];
 }
 
 export interface CreateRoleRequest {
   name: string;
+  kind: RoleKind;
   permissionIds?: string[];
 }
 
@@ -54,8 +110,17 @@ export interface IMembershipInvite {
   organizationId: string;
   organizationName?: string;
   roleId?: string;
+  roleType?: OrganizationRole;
   token: string;
   createdAt: string;
+}
+
+/** The current user's access summary for an org. */
+export interface IMyAccess {
+  membershipId: string;
+  roleType: OrganizationRole;
+  roleId: string | null;
+  permissions: string[];
 }
 
 export const membershipApi = apiSlice.injectEndpoints({
@@ -78,9 +143,9 @@ export const membershipApi = apiSlice.injectEndpoints({
       providesTags: (result) =>
         result
           ? [
-              ...result.map(({ id }) => ({ type: "Membership" as const, id })),
-              { type: "Membership", id: "INVITE_LIST" },
-            ]
+            ...result.map(({ id }) => ({ type: "Membership" as const, id })),
+            { type: "Membership", id: "INVITE_LIST" },
+          ]
           : [{ type: "Membership", id: "INVITE_LIST" }],
     }),
 
@@ -110,9 +175,9 @@ export const membershipApi = apiSlice.injectEndpoints({
       providesTags: (result) =>
         result
           ? [
-              ...result.map(r => ({ type: 'Membership' as const, id: r.id })),
-              { type: 'Membership', id: 'ROLE_LIST' }
-            ]
+            ...result.map(r => ({ type: 'Membership' as const, id: r.id })),
+            { type: 'Membership', id: 'ROLE_LIST' }
+          ]
           : [{ type: 'Membership', id: 'ROLE_LIST' }]
     }),
 
@@ -145,6 +210,80 @@ export const membershipApi = apiSlice.injectEndpoints({
       ],
     }),
 
+    // --- Members ---
+    getMembers: builder.query<IMember[], string>({
+      query: (orgId) => ({
+        url: `/membership/${orgId}/members`,
+        method: "GET",
+      }),
+      providesTags: (result) =>
+        result
+          ? [
+            ...result.map((m) => ({ type: "Membership" as const, id: m.id })),
+            { type: "Membership", id: "MEMBER_LIST" },
+          ]
+          : [{ type: "Membership", id: "MEMBER_LIST" }],
+    }),
+
+    getAssignableLocations: builder.query<IAssignableLocations, string>({
+      query: (orgId) => ({
+        url: `/membership/${orgId}/locations`,
+        method: "GET",
+      }),
+    }),
+
+    // Current user's role type + granted permission slugs for this org.
+    getMyAccess: builder.query<IMyAccess, string>({
+      query: (orgId) => ({
+        url: `/membership/${orgId}/me`,
+        method: "GET",
+      }),
+      providesTags: (_result, _error, orgId) => [{ type: "Membership", id: `ME_${orgId}` }],
+    }),
+
+    setMemberRole: builder.mutation<void, { organizationId: string; membershipId: string; roleId?: string | null }>({
+      query: ({ organizationId, membershipId, roleId }) => ({
+        url: `/membership/${organizationId}/members/${membershipId}/role`,
+        method: "PUT",
+        body: { roleId: roleId ?? undefined },
+      }),
+      invalidatesTags: [{ type: "Membership", id: "MEMBER_LIST" }],
+    }),
+
+    assignBranchRole: builder.mutation<void, { organizationId: string; membershipId: string; branchId: string; roleId?: string | null }>({
+      query: ({ organizationId, membershipId, branchId, roleId }) => ({
+        url: `/membership/${organizationId}/members/${membershipId}/branches/${branchId}`,
+        method: "PUT",
+        body: { roleId: roleId ?? undefined },
+      }),
+      invalidatesTags: [{ type: "Membership", id: "MEMBER_LIST" }],
+    }),
+
+    removeBranchRole: builder.mutation<void, { organizationId: string; membershipId: string; branchId: string }>({
+      query: ({ organizationId, membershipId, branchId }) => ({
+        url: `/membership/${organizationId}/members/${membershipId}/branches/${branchId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: [{ type: "Membership", id: "MEMBER_LIST" }],
+    }),
+
+    assignWarehouseRole: builder.mutation<void, { organizationId: string; membershipId: string; warehouseId: string; roleId?: string | null }>({
+      query: ({ organizationId, membershipId, warehouseId, roleId }) => ({
+        url: `/membership/${organizationId}/members/${membershipId}/warehouses/${warehouseId}`,
+        method: "PUT",
+        body: { roleId: roleId ?? undefined },
+      }),
+      invalidatesTags: [{ type: "Membership", id: "MEMBER_LIST" }],
+    }),
+
+    removeWarehouseRole: builder.mutation<void, { organizationId: string; membershipId: string; warehouseId: string }>({
+      query: ({ organizationId, membershipId, warehouseId }) => ({
+        url: `/membership/${organizationId}/members/${membershipId}/warehouses/${warehouseId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: [{ type: "Membership", id: "MEMBER_LIST" }],
+    }),
+
     // --- Membership Management ---
     leaveOrganization: builder.mutation<void, string>({
       query: (organizationId) => ({
@@ -166,4 +305,12 @@ export const {
   useCreateRoleMutation,
   useUpdateRoleMutation,
   useLeaveOrganizationMutation,
+  useGetMembersQuery,
+  useGetAssignableLocationsQuery,
+  useGetMyAccessQuery,
+  useSetMemberRoleMutation,
+  useAssignBranchRoleMutation,
+  useRemoveBranchRoleMutation,
+  useAssignWarehouseRoleMutation,
+  useRemoveWarehouseRoleMutation,
 } = membershipApi;

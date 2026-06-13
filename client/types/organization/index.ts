@@ -62,6 +62,8 @@ export interface IOrganization {
   metadata?: Record<string, any>;
   subscription?: ISubscription;
   memberships?: IMembership[];
+  /** The current user's role in this organization (set by the list endpoint). */
+  roleType?: OrganizationRole | null;
 }
 
 // Request Types (Matching your NestJS DTOs)
