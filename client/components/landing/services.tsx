@@ -36,7 +36,7 @@ const features = [
 
 const Features: React.FC = () => {
   return (
-    <div id="features" className="py-24 space-y-16 animate-in slide-in-from-bottom-10 duration-700 container mx-auto">
+    <div id="features" className="py-4 space-y-16 animate-in slide-in-from-bottom-10 duration-700 container mx-auto">
       <div className="max-w-3xl">
         <SectionHeading
           title1='Powerful Features for'

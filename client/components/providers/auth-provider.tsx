@@ -29,7 +29,10 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
         if (isDashboardRoute && !session) {
             router.push('/auth/sign-in')
         } else if (isAuthRoute && session) {
-            router.push('/organizations')
+            // Respect an explicit redirect target (e.g. invite-accept links) so we
+            // don't bounce freshly-authenticated users away from where they meant to go.
+            const redirect = new URLSearchParams(window.location.search).get('redirect')
+            router.push(redirect || '/organizations')
         } else if (isNewOrgPage && !session) {
             router.push('/auth/sign-in?redirect=/organizations/new')
         }

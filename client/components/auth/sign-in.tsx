@@ -52,7 +52,10 @@ export function SignIn() {
         password: values.password,
       }).unwrap();
 
-      router.push("/");
+      // Honor a `redirect` target (e.g. an invite-accept link that bounced
+      // an unauthenticated user here), otherwise land on the home page.
+      const redirect = new URLSearchParams(window.location.search).get("redirect");
+      router.push(redirect || "/");
     } catch (error: any) {
       console.error("Login failed:", error);
       // RTK Query errors are usually structured as error.data.message

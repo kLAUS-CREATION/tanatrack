@@ -1,10 +1,9 @@
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
-import React from "react";
 
 const Hero = function () {
   return (
-    <section className="container mx-auto min-h-[100vh] py-20 flex flex-col lg:flex-row items-center justify-between relative overflow-hidden">
+    <section className="w-[98%] lg:w-[95%] mx-auto min-h-screen py-20 flex flex-col lg:flex-row items-center justify-between relative overflow-hidden">
       <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] rounded-full bg-linear-to-b from-primary/20  dark:from-primary/10 to-secondary/10 blur-[120px]" />
       <div className="w-full lg:w-[50%] space-y-3 z-10">
         <h1 className="text-3xl lg:text-4xl 2xl:text-5xl leading-[1.05] font-clash">
