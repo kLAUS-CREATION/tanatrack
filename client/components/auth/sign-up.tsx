@@ -67,7 +67,9 @@ const SignUp = function () {
 
   return (
     <div className="size-full">
-      <SectionHeading title1="Create Your" title2="Account" desc={null}/>
+      <div className="mb-7">
+        <SectionHeading title1="Create your" title2="account" desc={"Start your 14-day free trial — no card required."}/>
+      </div>
 
       {/* Global Error Alert */}
       {serverError && (
@@ -78,7 +80,7 @@ const SignUp = function () {
       )}
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
           {/* Name Field */}
           <FormField
             control={form.control}
@@ -92,7 +94,7 @@ const SignUp = function () {
                     disabled={isLoading}
                     type="text"
                     placeholder="Your Name"
-                    className="h-11 rounded-lg border-foreground-tertiary/20 focus:border-[#003087] focus:ring-[#003087] transition"
+                    className="h-10 rounded-md border-border focus-visible:border-primary transition"
                   />
                 </FormControl>
                 <FormMessage />
@@ -113,7 +115,7 @@ const SignUp = function () {
                     disabled={isLoading}
                     type="email"
                     placeholder="you@example.com"
-                    className="h-11 rounded-lg border-foreground-tertiary/20 focus:border-[#003087] focus:ring-[#003087] transition"
+                    className="h-10 rounded-md border-border focus-visible:border-primary transition"
                   />
                 </FormControl>
                 <FormMessage />
@@ -135,7 +137,7 @@ const SignUp = function () {
                       disabled={isLoading}
                       type={showPassword ? "text" : "password"}
                       placeholder="••••••••"
-                      className="h-11 pr-10 rounded-lg border-foreground-tertiary/20 transition"
+                      className="h-10 pr-10 rounded-md border-border focus-visible:border-primary transition"
                     />
                     <Button
                       type="button"
@@ -173,6 +175,16 @@ const SignUp = function () {
               "Sign Up"
             )}
           </Button>
+
+          <p className="text-center text-[13px] text-foreground-tertiary">
+            Already have an account?{" "}
+            <Link
+              href="/auth/sign-in"
+              className={`font-semibold text-primary hover:underline ${isLoading ? "pointer-events-none opacity-50" : ""}`}
+            >
+              Sign in
+            </Link>
+          </p>
         </form>
       </Form>
     </div>

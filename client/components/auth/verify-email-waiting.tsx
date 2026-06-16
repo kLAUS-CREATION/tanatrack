@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Mail, ArrowRight } from "lucide-react"
+import { toast } from "sonner"
 import { Button } from "../ui/button"
 import Link from "next/link"
 import { useResendVerificationEmail } from "@/lib/hooks/auth/useVerifyEmail"
@@ -26,7 +27,7 @@ export function VerifyEmailWaiting({ email }: VerifyEmailWaitingProps) {
 
   const handleResendEmail = () => {
     if (resendAttempts >= 3) {
-      alert("Too many resend attempts. Please try again later.")
+      toast.error("Too many resend attempts. Please try again later.")
       return
     }
 

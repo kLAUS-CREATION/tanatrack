@@ -23,10 +23,10 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
 
         // Additional Client-Side Safety Net Redirects
         const isAuthRoute = pathname.includes('/auth')
-        const isDashboardRoute = pathname.includes('/dashboard') || pathname.includes('/organizations')
+        const isOrgRoute = pathname.includes('/organizations')
         const isNewOrgPage = pathname.includes('/organizations/new')
 
-        if (isDashboardRoute && !session) {
+        if (isOrgRoute && !session) {
             router.push('/auth/sign-in')
         } else if (isAuthRoute && session) {
             // Respect an explicit redirect target (e.g. invite-accept links) so we

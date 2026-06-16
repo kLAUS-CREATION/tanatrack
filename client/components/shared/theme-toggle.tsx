@@ -16,8 +16,8 @@ export default function ThemeToggle() {
 
   if (!mounted) {
     return (
-      <Button variant="ghost" size="icon" className="text-foreground-secondary">
-        <Sun className="size-6 opacity-0" />
+      <Button variant="ghost" size="icon-sm" className="text-foreground-secondary">
+        <Sun className="size-[18px] opacity-0" />
       </Button>
     );
   }
@@ -32,14 +32,14 @@ export default function ThemeToggle() {
     <Button
       onClick={toggleTheme}
       variant="ghost"
-      size="icon"
+      size="icon-sm"
       aria-label="Toggle theme"
       className="text-foreground-secondary transition-colors"
     >
       {isDarkMode ? (
-        <Sun className="size-6" />
+        <Sun className="size-[18px]" />
       ) : (
-        <Moon className="size-6" />
+        <Moon className="size-[18px]" />
       )}
     </Button>
   );

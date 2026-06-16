@@ -67,11 +67,13 @@ export function SignIn() {
   return (
     <div className="size-full">
 
-      <SectionHeading title1="Welcome" title2={"Back"} desc={null} />
+      <div className="mb-7">
+        <SectionHeading title1="Welcome" title2={"back"} desc={"Sign in to pick up where you left off."} />
+      </div>
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit(onSubmit)}
-          className="space-y-6"
+          className="space-y-5"
         >
           <FormField
             control={form.control}
@@ -85,7 +87,7 @@ export function SignIn() {
                     type="email"
                     disabled={isLoading}
                     placeholder="you@example.com"
-                    className="h-11 rounded-lg border-foreground-tertiary/20 focus:border-[#003087] focus:ring-[#003087] transition"
+                    className="h-10 rounded-md border-border focus-visible:border-primary transition"
                   />
                 </FormControl>
                 <FormMessage />
@@ -106,7 +108,7 @@ export function SignIn() {
                       disabled={isLoading}
                       type={showPassword ? "text" : "password"}
                       placeholder="••••••••"
-                      className="h-11 pr-10 rounded-lg border-foreground-tertiary/20 transition"
+                      className="h-10 pr-10 rounded-md border-border focus-visible:border-primary transition"
                     />
                     <Button
                       type="button"
@@ -158,6 +160,16 @@ export function SignIn() {
               "Sign In"
             )}
           </Button>
+
+          <p className="text-center text-[13px] text-foreground-tertiary">
+            Don&apos;t have an account?{" "}
+            <Link
+              href="/auth/sign-up"
+              className={`font-semibold text-primary hover:underline ${isLoading ? "pointer-events-none opacity-50" : ""}`}
+            >
+              Sign up
+            </Link>
+          </p>
         </form>
       </Form>
     </div>
