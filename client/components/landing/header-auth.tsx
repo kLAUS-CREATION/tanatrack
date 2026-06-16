@@ -27,9 +27,10 @@ export default function HeaderAuth() {
 
     if (session) {
         return (
+            <div className="flex items-center gap-2">
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                    <button className="size-8 rounded-full overflow-hidden bg-primary/10 flex items-center justify-center shrink-0 ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                    <button className="size-8 rounded-full overflow-hidden bg-primary/10 ring-1 ring-primary/20 flex items-center justify-center shrink-0 ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
                         <Image
                             src={session.user?.image || "/images/profile-placeholder.svg"}
                             alt={session.user?.name || "Profile"}
@@ -75,15 +76,16 @@ export default function HeaderAuth() {
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
+            </div>
         )
     }
 
     return (
-        <div className="flex items-center gap-2">
-            <Button variant="ghost" asChild>
+        <div className="flex items-center gap-1.5">
+            <Button variant="ghost" asChild size="sm" className="h-8 text-xs">
                 <Link href="/auth/sign-in">Sign In</Link>
             </Button>
-            <Button asChild>
+            <Button asChild size="sm" className="h-8 text-xs">
                 <Link href="/auth/sign-up">Sign Up</Link>
             </Button>
         </div>

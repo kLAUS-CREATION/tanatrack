@@ -51,56 +51,57 @@ const tiers = [
 
 export default function Plans() {
     return (
-        <section id="pricing" className="py-24 space-y-16">
-            <div className="container mx-auto text-center">
+        <section id="pricing" className="py-16 space-y-10">
+            <div className="container mx-auto flex justify-center text-center">
                 <SectionHeading
-                    title1="Simple Pricing for"
-                    title2={"Complex Challenges"}
+                    center
+                    title1="Simple pricing for"
+                    title2={"complex challenges"}
                     desc="No hidden fees. Scale your plan as your business grows. 14-day free trial on all plans."
                 />
             </div>
 
-            <div className="container mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="container mx-auto grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
                 {tiers.map((tier, index) => (
                     <div
                         key={index}
-                        className={`relative p-10 rounded-xs border ${tier.popular
-                                ? "border-primary bg-primary/5 shadow-2xl shadow-primary/10 scale-105 z-10"
-                                : "border-border bg-card shadow-sm"
-                            } flex flex-col transition-all duration-300 hover:shadow-xl`}
+                        className={`relative p-6 rounded-xs border flex flex-col transition-all duration-300 ${tier.popular
+                            ? "border-primary bg-primary/5 shadow-xl shadow-primary/10 md:-translate-y-2 z-10"
+                            : "border-primary/20 dark:border-primary/15 bg-background2 hover:border-primary/40"
+                            }`}
                     >
                         {tier.popular && (
-                            <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs font-bold px-4 py-2 rounded-full uppercase tracking-widest">
+                            <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest">
                                 Most Popular
                             </div>
                         )}
 
-                        <div className="mb-8">
-                            <h3 className="text-2xl font-bold mb-2">{tier.name}</h3>
-                            <p className="text-foreground-tertiary text-sm leading-relaxed">
+                        <div className="mb-5">
+                            <h3 className="text-base font-bold tracking-tight mb-1">{tier.name}</h3>
+                            <p className="text-foreground-tertiary text-xs leading-relaxed">
                                 {tier.description}
                             </p>
                         </div>
 
-                        <div className="mb-10 flex items-baseline gap-1">
-                            <span className="text-5xl font-clash font-bold">
+                        <div className="mb-6 flex items-baseline gap-1">
+                            <span className="text-3xl font-clash font-bold tracking-tight">
                                 {tier.price === "Custom" ? "" : "$"}
                                 {tier.price}
                             </span>
                             {tier.price !== "Custom" && (
-                                <span className="text-foreground-quaternary font-medium text-lg">
+                                <span className="text-foreground-quaternary font-medium text-sm">
                                     /month
                                 </span>
                             )}
                         </div>
 
-                        <ul className="space-y-4 mb-12 flex-1">
+                        <ul className="space-y-2.5 mb-7 flex-1">
                             {tier.features.map((feature, fIndex) => (
-                                <li key={fIndex} className="flex items-start gap-3">
-                                    <div className="size-5 rounded-full bg-primary/20 flex items-center justify-center mt-0.5">
-                                        <Check className="size-3 text-primary stroke-[3px]" />
+                                <li key={fIndex} className="flex items-start gap-2.5">
+                                    <div className="size-4 shrink-0 rounded-full bg-primary/20 flex items-center justify-center mt-0.5">
+                                        <Check className="size-2.5 text-primary stroke-[3px]" />
                                     </div>
-                                    <span className="text-sm font-medium text-foreground-secondary italic">
+                                    <span className="text-[13px] font-medium text-foreground-secondary">
                                         {feature}
                                     </span>
                                 </li>
@@ -109,12 +110,10 @@ export default function Plans() {
 
                         <Button
                             variant={tier.popular ? "default" : "outline"}
-                            size="lg"
-                            className={`w-full h-14 text-lg font-bold rounded-2xl ${!tier.popular && "border-primary/20 hover:bg-primary/5"
-                                }`}
+                            className="w-full group"
                         >
                             {tier.cta}
-                            <ArrowRight className="ml-2 size-4" />
+                            <ArrowRight className="ml-1 size-4 transition-transform group-hover:translate-x-0.5" />
                         </Button>
                     </div>
                 ))}
