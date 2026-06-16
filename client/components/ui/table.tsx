@@ -44,7 +44,7 @@ const TableRow = React.forwardRef<
     <tr
         ref={ref}
         className={cn(
-            "border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted",
+            "border-b border-border/50 transition-colors hover:bg-black/2.5 dark:hover:bg-white/2.5 data-[state=selected]:bg-muted/50",
             className,
         )}
         {...props}
@@ -59,7 +59,7 @@ const TableHead = React.forwardRef<
     <th
         ref={ref}
         className={cn(
-            "h-11 px-4 text-left align-middle text-xs font-medium uppercase tracking-wide text-muted-foreground [&:has([role=checkbox])]:pr-0",
+            "h-12 px-4 text-left align-middle text-xs font-semibold uppercase tracking-wider text-muted-foreground/80 [&:has([role=checkbox])]:pr-0 bg-muted/30 first:rounded-tl-lg last:rounded-tr-lg",
             className,
         )}
         {...props}
