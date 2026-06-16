@@ -22,18 +22,18 @@ import { useGetOrganizationByIdQuery, useGetOrganizationsQuery } from "@/lib/fea
 
 export function OrganizationSwitcher() {
   const { isMobile } = useSidebar()
-  const { dashboardId } = useParams();
+  const { orgId } = useParams();
 
-  if (!dashboardId) {
+  if (!orgId) {
       throw new Error("Cant get the dashboard Id");
   }
 
-  const { data: organization, isLoading} = useGetOrganizationByIdQuery(dashboardId as string);
+  const { data: organization, isLoading} = useGetOrganizationByIdQuery(orgId as string);
   const router = useRouter();
 
   if (!organization && !isLoading) {
       // console.log("this is organization: ", organization);
-      router.push(`/organizations/${dashboardId}`)
+      router.push(`/organizations/${orgId}`)
   }
 
   const { data: organizations, isLoading: isLoadingOrganizations} = useGetOrganizationsQuery();
@@ -72,14 +72,14 @@ export function OrganizationSwitcher() {
                 key={org.id}
                 className="gap-2 p-2"
               >
-               <Link href={`/dashboard/${org.id}`} className="w-full flex items-center gap-2">
+               <Link href={`/organizations/${org.id}`} className="w-full flex items-center gap-2">
                    {org.name}
                 </Link>
               </DropdownMenuItem>
             ))}
             <DropdownMenuSeparator />
             <DropdownMenuItem className="gap-2 p-2">
-              <Link href={`/dashboard/new-organization`} className="flex items-center gap-2 size-full">
+              <Link href={`/organizations/new`} className="flex items-center gap-2 size-full">
               <div className="flex size-6 items-center justify-center rounded-md border bg-transparent">
                 <Plus className="size-4" />
               </div>

@@ -28,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import {
   IProduct,
@@ -44,7 +45,6 @@ const variantSchema = z.object({
   sku: z.string().min(1, "SKU required"),
   name: z.string().min(1, "Variant name required"),
   barcode: z.string().optional(),
-  costPrice: z.number().min(0),
   sellingPrice: z.number().min(0),
 });
 
@@ -87,7 +87,7 @@ export function ProductForm({
       description: "",
       categoryId: NONE,
       unit: ProductUnit.PIECE,
-      variants: [{ sku: "", name: "", barcode: "", costPrice: 0, sellingPrice: 0 }],
+      variants: [{ sku: "", name: "", barcode: "", sellingPrice: 0 }],
     },
   });
 
@@ -109,10 +109,9 @@ export function ProductForm({
                 sku: v.sku,
                 name: v.name,
                 barcode: v.barcode || "",
-                costPrice: fromMinor(v.costPrice),
                 sellingPrice: fromMinor(v.sellingPrice),
               }))
-            : [{ sku: "", name: "", barcode: "", costPrice: 0, sellingPrice: 0 }],
+            : [{ sku: "", name: "", barcode: "", sellingPrice: 0 }],
       });
     } else {
       form.reset({
@@ -120,9 +119,7 @@ export function ProductForm({
         description: "",
         categoryId: NONE,
         unit: ProductUnit.PIECE,
-        variants: [
-          { sku: "", name: "", barcode: "", costPrice: 0, sellingPrice: 0 },
-        ],
+        variants: [{ sku: "", name: "", barcode: "", sellingPrice: 0 }],
       });
     }
   }, [initialData, form]);
@@ -143,7 +140,6 @@ export function ProductForm({
             sku: v.sku,
             name: v.name,
             barcode: v.barcode || undefined,
-            costPrice: toMinor(v.costPrice),
             sellingPrice: toMinor(v.sellingPrice),
           })),
     };
@@ -182,21 +178,22 @@ export function ProductForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Category</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Uncategorized" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value={NONE}>Uncategorized</SelectItem>
-                        {categories.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <Combobox
+                        options={[
+                          { value: NONE, label: "Uncategorized" },
+                          ...categories.map((c) => ({
+                            value: c.id,
+                            label: c.name,
+                          })),
+                        ]}
+                        value={field.value || NONE}
+                        onChange={field.onChange}
+                        placeholder="Uncategorized"
+                        searchPlaceholder="Search categories…"
+                        emptyText="No categories found."
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -254,7 +251,6 @@ export function ProductForm({
                         sku: "",
                         name: "",
                         barcode: "",
-                        costPrice: 0,
                         sellingPrice: 0,
                       })
                     }
@@ -270,39 +266,38 @@ export function ProductForm({
                 </p>
               )}
 
+              {!isEdit && fields.length > 0 && (
+                <div className="grid grid-cols-12 gap-2 px-2 text-xs font-medium text-muted-foreground">
+                  <div className="col-span-4">SKU</div>
+                  <div className="col-span-4">Variant name</div>
+                  <div className="col-span-3">Selling price</div>
+                  <div className="col-span-1" />
+                </div>
+              )}
+
               {!isEdit &&
                 fields.map((f, idx) => (
                   <div
                     key={f.id}
                     className="grid grid-cols-12 gap-2 items-start rounded-sm border border-border p-2"
                   >
-                    <div className="col-span-3">
+                    <div className="col-span-4">
                       <Input
                         placeholder="SKU"
                         {...form.register(`variants.${idx}.sku`)}
                       />
                     </div>
-                    <div className="col-span-3">
+                    <div className="col-span-4">
                       <Input
                         placeholder="Name (e.g. Large)"
                         {...form.register(`variants.${idx}.name`)}
                       />
                     </div>
-                    <div className="col-span-2">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        placeholder="Cost"
-                        {...form.register(`variants.${idx}.costPrice`, {
-                          valueAsNumber: true,
-                        })}
-                      />
-                    </div>
                     <div className="col-span-3">
                       <Input
                         type="number"
                         step="0.01"
-                        placeholder="Price"
+                        placeholder="Selling price"
                         {...form.register(`variants.${idx}.sellingPrice`, {
                           valueAsNumber: true,
                         })}

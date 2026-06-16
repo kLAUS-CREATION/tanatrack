@@ -19,7 +19,8 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { Edit, Trash2, MapPin, Warehouse as WarehouseIcon } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
+import { CardGridSkeleton, TableSkeleton } from "@/components/dashboard/shared/table-skeleton";
+import { EmptyState } from "@/components/dashboard/shared/empty-state";
 import { LocationView } from "./view-toggle";
 
 interface WarehouseListProps {
@@ -40,22 +41,20 @@ export function WarehouseList({
     const showActions = Boolean(onEdit || onDelete);
 
     if (isLoading) {
-        return (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {[1, 2, 3].map((i) => (
-                    <Skeleton key={i} className="h-[180px] w-full rounded-xl" />
-                ))}
-            </div>
+        return view === "table" ? (
+            <TableSkeleton cols={showActions ? 4 : 3} />
+        ) : (
+            <CardGridSkeleton itemClassName="h-[180px]" />
         );
     }
 
     if (!warehouses || warehouses.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center h-full">
-                <WarehouseIcon className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold">No warehouses found</h3>
-                <p className="text-muted-foreground">Get started by creating your first warehouse.</p>
-            </div>
+            <EmptyState
+                icon={WarehouseIcon}
+                title="No warehouses found"
+                description="Get started by creating your first warehouse."
+            />
         );
     }
 

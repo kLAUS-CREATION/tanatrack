@@ -11,6 +11,7 @@ import {
   useRemoveWarehouseRoleMutation,
   IMember,
   OrganizationRole,
+  RoleKind,
 } from "@/lib/features/services/membership.api";
 import { useGetBranchesQuery } from "@/lib/features/services/branch.api";
 import { useGetWarehousesQuery } from "@/lib/features/services/warehouse.api";
@@ -202,10 +203,14 @@ function MemberRow({
 }: {
   organizationId: string;
   member: IMember;
-  roles: { id: string; name: string }[];
+  roles: { id: string; name: string; kind: RoleKind }[];
 }) {
   const isOwner = member.roleType === OrganizationRole.OWNER;
   const [setMemberRole, { isLoading: savingRole }] = useSetMemberRoleMutation();
+
+  // The org-wide slot only accepts GLOBAL roles; LOCAL roles are assigned per
+  // location from the Locations sheet.
+  const globalRoles = roles.filter((r) => r.kind === RoleKind.GLOBAL);
 
   const initials = member.user.name
     ?.split(" ")
@@ -283,7 +288,7 @@ function MemberRow({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={NO_ROLE}>No org role</SelectItem>
-              {roles.map((r) => (
+              {globalRoles.map((r) => (
                 <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
               ))}
             </SelectContent>
@@ -323,12 +328,16 @@ function LocationAccessSheet({
 }: {
   organizationId: string;
   member: IMember;
-  roles: { id: string; name: string }[];
+  roles: { id: string; name: string; kind: RoleKind }[];
   trigger: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const { data: branches } = useGetBranchesQuery(organizationId, { skip: !open });
   const { data: warehouses } = useGetWarehousesQuery(organizationId, { skip: !open });
+
+  // Per-location access only accepts LOCAL roles; org-wide roles are set from the
+  // member's org-role selector instead.
+  const localRoles = roles.filter((r) => r.kind === RoleKind.LOCAL);
 
   const [assignBranch] = useAssignBranchRoleMutation();
   const [removeBranch] = useRemoveBranchRoleMutation();
@@ -390,7 +399,7 @@ function LocationAccessSheet({
                   key={b.id}
                   name={b.name}
                   roleId={branchRoleFor(b.id)}
-                  roles={roles}
+                  roles={localRoles}
                   onChange={(v) => onBranchChange(b.id, v)}
                 />
               ))
@@ -409,7 +418,7 @@ function LocationAccessSheet({
                   key={w.id}
                   name={w.name}
                   roleId={warehouseRoleFor(w.id)}
-                  roles={roles}
+                  roles={localRoles}
                   onChange={(v) => onWarehouseChange(w.id, v)}
                 />
               ))

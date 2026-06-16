@@ -15,7 +15,7 @@ export default function NewOrganization() {
     }
 
     return (
-        <div className="w-[98%] lg:w-[95%] mx-auto size-full">
+        <div className="container mx-auto size-full">
             <div className="py-6 mb-10 border-b border-border/50">
                 <SectionHeading
                     title1="Create Your New"

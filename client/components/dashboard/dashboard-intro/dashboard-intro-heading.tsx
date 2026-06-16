@@ -14,7 +14,7 @@ export default function DashboardIntoHeading () {
 }
 
 const DashboardIntroNewOrganizationButton = function () {
-    return <Link href={'/dashboard/new-organization'}>
+    return <Link href={'/organizations/new'}>
         <Button>
             New Organization
         </Button>

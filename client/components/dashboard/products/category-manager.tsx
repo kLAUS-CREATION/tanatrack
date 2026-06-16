@@ -9,10 +9,12 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   IProductCategory,
+  isPendingChange,
   useCreateCategoryMutation,
   useDeleteCategoryMutation,
 } from "@/lib/features/services/product.api";
@@ -33,12 +35,18 @@ export function CategoryManager({
   const [name, setName] = useState("");
   const [createCategory, { isLoading: isCreating }] = useCreateCategoryMutation();
   const [deleteCategory] = useDeleteCategoryMutation();
+  const [ConfirmDialog, confirm] = useConfirm();
 
   const handleCreate = async () => {
     if (!name.trim()) return;
     try {
-      await createCategory({ orgId, body: { name: name.trim() } }).unwrap();
-      toast.success("Category created");
+      const res = await createCategory({
+        orgId,
+        body: { name: name.trim() },
+      }).unwrap();
+      toast.success(
+        isPendingChange(res) ? "Category submitted for approval" : "Category created",
+      );
       setName("");
     } catch (error: any) {
       toast.error(error?.data?.message || "Failed to create category");
@@ -46,18 +54,27 @@ export function CategoryManager({
   };
 
   const handleDelete = async (categoryId: string) => {
+    const ok = await confirm({
+      title: "Delete category?",
+      description:
+        "Products in this category won't be deleted, but they'll no longer be grouped under it.",
+      confirmText: "Delete",
+    });
+    if (!ok) return;
     try {
-      await deleteCategory({ orgId, categoryId }).unwrap();
-      toast.success("Category deleted");
+      const res = await deleteCategory({ orgId, categoryId }).unwrap();
+      toast.success(
+        isPendingChange(res) ? "Deletion submitted for approval" : "Category deleted",
+      );
     } catch (error: any) {
       toast.error(error?.data?.message || "Failed to delete category");
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[440px]">
-        <DialogHeader>
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-[440px]">        <DialogHeader>
           <DialogTitle>Product Categories</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
@@ -99,7 +116,9 @@ export function CategoryManager({
             ))}
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+      {ConfirmDialog}
+    </>
   );
 }

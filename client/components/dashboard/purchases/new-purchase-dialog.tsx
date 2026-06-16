@@ -8,32 +8,26 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatMoney } from "@/lib/utils";
+import { Combobox } from "@/components/ui/combobox";
+import { variantOptions } from "@/components/dashboard/inventory/stock-op-dialog";
 import { IProduct } from "@/lib/features/services/product.api";
-import { IBranch } from "@/lib/features/services/branch.api";
-import { IWarehouse } from "@/lib/features/services/warehouse.api";
+import { ISupplier } from "@/lib/features/services/supplier.api";
 import {
   PurchaseItemInput,
   useCreatePurchaseMutation,
 } from "@/lib/features/services/purchase.api";
-import {
-  LocationOptions,
-  decodeLocation,
-} from "@/components/dashboard/inventory/stock-op-dialog";
+import { isPendingChange } from "@/lib/features/services/change-request.api";
 
 const toMinor = (n: number) => Math.round(n * 100);
+
+// Sentinel for "no specific supplier" in the supplier Select.
+const UNKNOWN_SUPPLIER = "__unknown__";
 
 interface Line {
   variantId: string;
@@ -46,8 +40,9 @@ interface NewPurchaseDialogProps {
   onClose: () => void;
   orgId: string;
   products: IProduct[];
-  branches: IBranch[];
-  warehouses: IWarehouse[];
+  suppliers: ISupplier[];
+  /** When the actor isn't an approver, the purchase is queued for approval. */
+  needsApproval?: boolean;
 }
 
 export function NewPurchaseDialog({
@@ -55,11 +50,10 @@ export function NewPurchaseDialog({
   onClose,
   orgId,
   products,
-  branches,
-  warehouses,
+  suppliers,
+  needsApproval,
 }: NewPurchaseDialogProps) {
-  const [location, setLocation] = useState("");
-  const [supplierName, setSupplierName] = useState("");
+  const [supplierId, setSupplierId] = useState(UNKNOWN_SUPPLIER);
   const [reference, setReference] = useState("");
   const [lines, setLines] = useState<Line[]>([
     { variantId: "", quantity: 1, unitCost: 0 },
@@ -69,8 +63,7 @@ export function NewPurchaseDialog({
 
   useEffect(() => {
     if (isOpen) {
-      setLocation("");
-      setSupplierName("");
+      setSupplierId(UNKNOWN_SUPPLIER);
       setReference("");
       setLines([{ variantId: "", quantity: 1, unitCost: 0 }]);
     }
@@ -90,6 +83,18 @@ export function NewPurchaseDialog({
     return map;
   }, [products]);
 
+  // Combobox options: variant picker (shared builder) + supplier picker.
+  const variantOpts = useMemo(() => variantOptions(products), [products]);
+  const supplierOpts = useMemo(
+    () => [
+      { value: UNKNOWN_SUPPLIER, label: "Unknown supplier" },
+      ...suppliers
+        .filter((s) => s.isActive)
+        .map((s) => ({ value: s.id, label: s.name })),
+    ],
+    [suppliers],
+  );
+
   const total = lines.reduce(
     (sum, l) => sum + l.unitCost * (l.quantity || 0),
     0,
@@ -105,10 +110,6 @@ export function NewPurchaseDialog({
   };
 
   const handleSubmit = async () => {
-    if (!location) {
-      toast.error("Select a destination location");
-      return;
-    }
     const items: PurchaseItemInput[] = lines
       .filter((l) => l.variantId && l.quantity > 0)
       .map((l) => ({
@@ -121,16 +122,19 @@ export function NewPurchaseDialog({
       return;
     }
     try {
-      await createPurchase({
+      const res = await createPurchase({
         orgId,
         body: {
-          ...decodeLocation(location),
-          supplierName: supplierName || undefined,
+          supplierId: supplierId === UNKNOWN_SUPPLIER ? undefined : supplierId,
           reference: reference || undefined,
           items,
         },
       }).unwrap();
-      toast.success("Purchase recorded — stock received");
+      toast.success(
+        isPendingChange(res)
+          ? "Purchase submitted for approval"
+          : "Purchase recorded — stock received into the receiving pool",
+      );
       onClose();
     } catch (error: any) {
       toast.error(error?.data?.message || "Failed to record purchase");
@@ -144,24 +148,16 @@ export function NewPurchaseDialog({
           <DialogTitle>New Purchase</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-2">
-              <Label>Receive into</Label>
-              <Select value={location} onValueChange={setLocation}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Location" />
-                </SelectTrigger>
-                <SelectContent>
-                  <LocationOptions branches={branches} warehouses={warehouses} />
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Supplier</Label>
-              <Input
-                value={supplierName}
-                onChange={(e) => setSupplierName(e.target.value)}
-                placeholder="Optional"
+              <Combobox
+                options={supplierOpts}
+                value={supplierId}
+                onChange={setSupplierId}
+                placeholder="Supplier"
+                searchPlaceholder="Search suppliers…"
+                emptyText="No suppliers found."
               />
             </div>
             <div className="space-y-2">
@@ -173,6 +169,11 @@ export function NewPurchaseDialog({
               />
             </div>
           </div>
+
+          <p className="text-xs text-muted-foreground">
+            Received stock goes into the receiving pool. Allocate it to a branch or
+            warehouse afterwards from the Inventory page.
+          </p>
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -205,21 +206,14 @@ export function NewPurchaseDialog({
                 className="grid grid-cols-12 gap-2 items-center rounded-sm border border-border p-2"
               >
                 <div className="col-span-6">
-                  <Select
+                  <Combobox
+                    options={variantOpts}
                     value={line.variantId}
-                    onValueChange={(v) => pickVariant(idx, v)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select product" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Array.from(variantMap.entries()).map(([id, v]) => (
-                        <SelectItem key={id} value={id}>
-                          {v.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    onChange={(v) => pickVariant(idx, v)}
+                    placeholder="Select product"
+                    searchPlaceholder="Search products…"
+                    emptyText="No products found."
+                  />
                 </div>
                 <div className="col-span-2">
                   <Input
@@ -277,7 +271,7 @@ export function NewPurchaseDialog({
           </Button>
           <Button onClick={handleSubmit} disabled={isLoading}>
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Record Purchase
+            {needsApproval ? "Submit for approval" : "Record Purchase"}
           </Button>
         </DialogFooter>
       </DialogContent>

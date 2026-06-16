@@ -6,6 +6,7 @@ import {
   ChevronsUpDown,
   CreditCard,
 } from "lucide-react"
+import Link from "next/link"
 
 import {
   Avatar,
@@ -79,9 +80,11 @@ export function NavUser() {
             <DropdownMenuSeparator />
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <BadgeCheck />
-                Account
+              <DropdownMenuItem asChild>
+                <Link href="/profile">
+                  <BadgeCheck />
+                  Account
+                </Link>
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <CreditCard />

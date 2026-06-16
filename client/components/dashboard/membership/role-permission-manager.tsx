@@ -206,7 +206,7 @@ export function RolePermissionsManager({ organizationId }: { organizationId: str
         </TabsList>
 
         <TabsContent value="overview">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-3 lg:gap-4">
             {roles?.map((role) => (
               <div
                 key={role.id}
@@ -318,6 +318,24 @@ export function RolePermissionsManager({ organizationId }: { organizationId: str
   );
 }
 
+// Raw FeatureCategory enum values are not always self-explanatory in the UI
+// (e.g. the org-wide ADMINISTRATION_ACCESS permission lives under USERS). Map
+// each category to a friendlier heading, and float the most privileged ones up.
+const CATEGORY_LABELS: Record<string, string> = {
+  USERS: "Administration",
+};
+
+const CATEGORY_ORDER = ["USERS"];
+
+function categoryLabel(category: string): string {
+  return CATEGORY_LABELS[category] ?? category;
+}
+
+function categoryRank(category: string): number {
+  const i = CATEGORY_ORDER.indexOf(category);
+  return i === -1 ? CATEGORY_ORDER.length : i;
+}
+
 /**
  * Sub-component for the Permission Grid to keep the main logic clean
  */
@@ -343,7 +361,9 @@ function PermissionMatrix({
         ? group.permissions.filter((p) => (p.scope as string) === (scope as string))
         : group.permissions,
     }))
-    .filter((group) => group.permissions.length > 0);
+    .filter((group) => group.permissions.length > 0)
+    // Surface the most privileged categories (e.g. Administration) first.
+    .sort((a, b) => categoryRank(a.category) - categoryRank(b.category));
 
   return (
     <div className="space-y-10">
@@ -371,7 +391,7 @@ function PermissionMatrix({
             <div className="flex items-center justify-between mb-4 bg-muted/40 p-3 rounded-xl border border-border/50">
               <div className="flex items-center gap-3">
                 <div className="h-8 w-1 bg-primary rounded-full" />
-                <h3 className="font-bold text-lg tracking-tight uppercase">{group.category}</h3>
+                <h3 className="font-bold text-lg tracking-tight uppercase">{categoryLabel(group.category)}</h3>
                 <Badge variant="outline" className="bg-background">{group.permissions.length} permissions</Badge>
               </div>
               <Button

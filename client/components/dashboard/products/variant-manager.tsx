@@ -17,11 +17,13 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatMoney } from "@/lib/utils";
 import {
   IProduct,
+  isPendingChange,
   useAddVariantMutation,
   useDeleteVariantMutation,
 } from "@/lib/features/services/product.api";
@@ -47,6 +49,7 @@ export function VariantManager({
 
   const [addVariant, { isLoading: isAdding }] = useAddVariantMutation();
   const [deleteVariant] = useDeleteVariantMutation();
+  const [ConfirmDialog, confirm] = useConfirm();
 
   if (!product) return null;
 
@@ -56,7 +59,7 @@ export function VariantManager({
       return;
     }
     try {
-      await addVariant({
+      const res = await addVariant({
         orgId,
         productId: product.id,
         body: {
@@ -65,7 +68,9 @@ export function VariantManager({
           sellingPrice: toMinor(Number(price) || 0),
         },
       }).unwrap();
-      toast.success("Variant added");
+      toast.success(
+        isPendingChange(res) ? "Variant submitted for approval" : "Variant added",
+      );
       setSku("");
       setName("");
       setPrice("");
@@ -75,17 +80,31 @@ export function VariantManager({
   };
 
   const handleDelete = async (variantId: string) => {
+    const ok = await confirm({
+      title: "Remove variant?",
+      description:
+        "This permanently removes the variant from this product. This action cannot be undone.",
+      confirmText: "Remove",
+    });
+    if (!ok) return;
     try {
-      await deleteVariant({ orgId, productId: product.id, variantId }).unwrap();
-      toast.success("Variant removed");
+      const res = await deleteVariant({
+        orgId,
+        productId: product.id,
+        variantId,
+      }).unwrap();
+      toast.success(
+        isPendingChange(res) ? "Removal submitted for approval" : "Variant removed",
+      );
     } catch (error: any) {
       toast.error(error?.data?.message || "Failed to remove variant");
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[640px]">
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-[640px]">
         <DialogHeader>
           <DialogTitle>{product.name} — Variants</DialogTitle>
         </DialogHeader>
@@ -152,7 +171,9 @@ export function VariantManager({
             </Table>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+      {ConfirmDialog}
+    </>
   );
 }

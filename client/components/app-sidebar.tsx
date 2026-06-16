@@ -52,7 +52,7 @@ const dashboardLinks: DashboardLink[] = [
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { data: user, isLoading: isUserLoading } = useGetSessionQuery();
 
-  // orgId lives at /<lang>/dashboard/<orgId>/...
+  // orgId lives at /<lang>/organizations/<orgId>/...
   const pathname = usePathname();
   const orgId = pathname.split("/")[3];
   const { canAdminister } = useOrgAccess(orgId);
@@ -62,19 +62,20 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   if (!user && !isUserLoading) return null;
 
   return (
-    <Sidebar collapsible="offcanvas" variant="inset" {...props} className="bg-background2">
-      <SidebarHeader className="h-14 border-b border-sidebar-border/40 px-4 flex justify-center">
+    <Sidebar collapsible="offcanvas" variant="inset" {...props} className="bg-sidebar border-r border-sidebar-border/50">
+      <SidebarHeader className="h-16 border-b border-sidebar-border/50 px-4 flex justify-center bg-sidebar/50 backdrop-blur-sm sticky top-0 z-10">
         <OrganizationSwitcher />
       </SidebarHeader>
 
-      <SidebarContent className="py-4">
+      <SidebarContent className="py-2 scrollbar-thin">
         <NavMain items={links} />
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border/40 p-2">
+      <SidebarFooter className="border-t border-sidebar-border/50 p-3 bg-sidebar/50 backdrop-blur-sm">
         <NavUser />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
   )
+
 }
