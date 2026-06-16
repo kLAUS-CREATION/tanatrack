@@ -20,9 +20,11 @@ import { FeaturesModule } from './modules/features/features.module';
 import { OrganizationModule } from './modules/organization/organization.module';
 import { ScheduleModule } from './modules/schedule/schedule.module';
 import { ProductsModule } from './modules/core/products/products.module';
+import { ChangeRequestModule } from './modules/core/change-requests/change-request.module';
 import { InventoryModule } from './modules/core/inventory/inventory.module';
 import { SalesModule } from './modules/core/sales/sales.module';
 import { PurchasesModule } from './modules/core/purchases/purchases.module';
+import { AllocationsModule } from './modules/core/allocations/allocations.module';
 import { ReportsModule } from './modules/core/reports/reports.module';
 import { CustomersModule } from './modules/core/customers/customers.module';
 import { SuppliersModule } from './modules/core/suppliers/suppliers.module';
@@ -68,9 +70,11 @@ import { WarehouseModule } from './modules/core/warehouse/warehouse.module';
     OrganizationModule,
     ScheduleModule,
     ProductsModule,
+    ChangeRequestModule,
     InventoryModule,
     SalesModule,
     PurchasesModule,
+    AllocationsModule,
     ReportsModule,
     CustomersModule,
     SuppliersModule,

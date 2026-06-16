@@ -28,6 +28,7 @@ export const PERMISSIONS = {
   PRODUCTS_MANAGE: 'PRODUCTS_MANAGE', // GLOBAL — create/update/delete products & variants
   PRODUCTS_MANAGE_CATEGORIES: 'PRODUCTS_MANAGE_CATEGORIES', // GLOBAL
   INVENTORY_VIEW_GLOBAL_STOCK: 'INVENTORY_VIEW_GLOBAL_STOCK', // GLOBAL
+  INVENTORY_MANAGE: 'INVENTORY_MANAGE', // GLOBAL — allocate received (pool) stock to locations (maker-checker)
   INVENTORY_ADJUST_STOCK: 'INVENTORY_ADJUST_STOCK', // LOCAL
   INVENTORY_PURCHASE_IN: 'INVENTORY_PURCHASE_IN', // LOCAL — receive new stock
   INVENTORY_TRANSFER_STOCK: 'INVENTORY_TRANSFER_STOCK', // LOCAL — move stock between locations
@@ -44,6 +45,9 @@ export const PERMISSIONS = {
   // SUPPLIERS (org-wide reference data)
   SUPPLIERS_VIEW_ALL: 'SUPPLIERS_VIEW_ALL', // GLOBAL
   SUPPLIERS_MANAGE: 'SUPPLIERS_MANAGE', // GLOBAL
+
+  // PURCHASES — recording stock received (maker-checker via change requests)
+  PURCHASE_MANAGE: 'PURCHASE_MANAGE', // GLOBAL — record purchases (queued unless approver)
 } as const;
 
 export type PermissionSlug = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];

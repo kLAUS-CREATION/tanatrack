@@ -4,9 +4,9 @@ import { prisma } from "../src/lib/prisma";
 async function main() {
   console.log("🌱 Starting permission definitions seeding...");
 
-  // DANGER: Deletes ALL existing permission definitions
-  const deleteCount = await prisma.permissionDefinition.deleteMany({});
-  console.log(`🗑️  Deleted ${deleteCount.count} existing permission definitions.`);
+  // NOTE: This seed is idempotent — every permission is upserted by its unique
+  // `slug`, preserving existing ids so role→permission assignments survive.
+  // (Deleting permission definitions cascades to RolePermission, so we never do.)
 
   // Define permissions grouped by category.
   // `slug` defaults to `${category}_${action}`; set it explicitly to override.
@@ -110,6 +110,14 @@ async function main() {
     },
     {
       category: FeatureCategory.INVENTORY,
+      action: "MANAGE",
+      name: "Allocate Received Stock",
+      description:
+        "Move purchased (unallocated) stock from the receiving pool to a branch or warehouse",
+      scope: PermissionScope.GLOBAL,
+    },
+    {
+      category: FeatureCategory.INVENTORY,
       action: "ADJUST_STOCK",
       name: "Adjust Stock",
       description: "Correct stock counts in a location",
@@ -182,6 +190,16 @@ async function main() {
       action: "MANAGE",
       name: "Manage Suppliers",
       description: "Create, update and delete suppliers",
+      scope: PermissionScope.GLOBAL,
+    },
+
+    // PURCHASES (record stock received — maker-checker)
+    {
+      category: FeatureCategory.PURCHASE,
+      action: "MANAGE",
+      name: "Manage Purchases",
+      description:
+        "Record purchases that bring stock in; submitted for approval unless you can administer",
       scope: PermissionScope.GLOBAL,
     },
   ];
