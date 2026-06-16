@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from 'src/modules/prisma/prisma.service';
 import { CreateBranchDto, UpdateBranchDto } from './dto/branch.dto';
 import { MembershipService } from '../membership/membership.service';
@@ -34,8 +34,32 @@ export class BranchService {
   }
 
   async findAll(orgId: string, userId: string) {
-    await this.membershipService.verifyAccess(userId, orgId, PERMISSIONS.BRANCHES_LIST_ALL);
-    return this.prisma.branch.findMany({ where: { organizationId: orgId } });
+    // Holders of the org-wide BRANCHES_LIST_ALL permission (and the owner) see
+    // every branch in the organization.
+    const canListAll = await this.membershipService.hasPermission(
+      userId,
+      orgId,
+      PERMISSIONS.BRANCHES_LIST_ALL,
+    );
+    if (canListAll) {
+      return this.prisma.branch.findMany({ where: { organizationId: orgId } });
+    }
+
+    // A member with only a LOCAL role sees just the branches they're assigned to.
+    const membership = await this.prisma.membership.findUnique({
+      where: { userId_organizationId: { userId, organizationId: orgId } },
+      select: { id: true },
+    });
+    if (!membership) {
+      throw new ForbiddenException('You are not a member of this organization');
+    }
+
+    return this.prisma.branch.findMany({
+      where: {
+        organizationId: orgId,
+        memberships: { some: { membershipId: membership.id } },
+      },
+    });
   }
 
   async create(orgId: string, userId: string, dto: CreateBranchDto) {

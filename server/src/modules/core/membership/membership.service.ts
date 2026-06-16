@@ -99,6 +99,25 @@ export class MembershipService {
     );
   }
 
+  /**
+   * Non-throwing variant of verifyAccess. Returns true when the user is allowed,
+   * false on a permission/membership denial. Any other error is re-thrown.
+   * Use for branching logic (e.g. "is this actor an approver?").
+   */
+  async hasPermission(
+    userId: string,
+    orgId: string,
+    actionSlug?: string,
+    context: AccessContext = {},
+  ): Promise<boolean> {
+    try {
+      return await this.verifyAccess(userId, orgId, actionSlug, context);
+    } catch (e) {
+      if (e instanceof ForbiddenException) return false;
+      throw e;
+    }
+  }
+
   /** True if a role (with included permissions) grants the slug. */
   private roleGrants(
     role: { permissions: { allowed: boolean; permissionDefinition: { slug: string } }[] } | null,

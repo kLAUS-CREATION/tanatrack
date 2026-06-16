@@ -75,9 +75,13 @@ export class SalesService {
     });
     if (!branch) throw new NotFoundException('Branch not found in this organization');
 
+    // Optional customer link. When provided, snapshot the name/phone onto the sale
+    // so history stays readable from just a customerId; walk-ins pass free-text only.
+    let customer: { name: string; phone: string | null } | null = null;
     if (dto.customerId) {
-      const customer = await this.prisma.customer.findFirst({
+      customer = await this.prisma.customer.findFirst({
         where: { id: dto.customerId, organizationId: orgId },
+        select: { name: true, phone: true },
       });
       if (!customer)
         throw new NotFoundException('Customer not found in this organization');
@@ -134,8 +138,8 @@ export class SalesService {
           branchId: dto.branchId,
           soldBy: userId,
           customerId: dto.customerId,
-          customerName: dto.customerName,
-          customerPhone: dto.customerPhone,
+          customerName: dto.customerName ?? customer?.name,
+          customerPhone: dto.customerPhone ?? customer?.phone,
           subtotal,
           total,
           items: { create: itemRows },

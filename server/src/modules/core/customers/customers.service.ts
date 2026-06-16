@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from 'src/modules/prisma/prisma.service';
 import { MembershipService } from '../membership/membership.service';
 import { PERMISSIONS } from 'src/constants/permissions.constant';
@@ -12,11 +16,9 @@ export class CustomersService {
   ) {}
 
   async findAll(orgId: string, userId: string) {
-    await this.membershipService.verifyAccess(
-      userId,
-      orgId,
-      PERMISSIONS.CUSTOMERS_VIEW_ALL,
-    );
+    // Customer directory readers OR anyone who can record a sale (so the sale
+    // dialog's customer picker loads even without CUSTOMERS_VIEW_ALL).
+    await this.assertCanList(orgId, userId);
     return this.prisma.customer.findMany({
       where: { organizationId: orgId },
       orderBy: { createdAt: 'desc' },
@@ -82,5 +84,30 @@ export class CustomersService {
     });
     if (!customer) throw new NotFoundException('Customer not found');
     return customer;
+  }
+
+  /** Directory viewers, customer managers, or sellers may read the customer list. */
+  private async assertCanList(orgId: string, userId: string) {
+    const allowed =
+      (await this.membershipService.hasPermission(
+        userId,
+        orgId,
+        PERMISSIONS.CUSTOMERS_VIEW_ALL,
+      )) ||
+      (await this.membershipService.hasPermission(
+        userId,
+        orgId,
+        PERMISSIONS.CUSTOMERS_MANAGE,
+      )) ||
+      (await this.membershipService.hasPermission(
+        userId,
+        orgId,
+        PERMISSIONS.SALES_CREATE,
+      ));
+    if (!allowed) {
+      throw new ForbiddenException(
+        'Missing required permission: CUSTOMERS_VIEW_ALL',
+      );
+    }
   }
 }
