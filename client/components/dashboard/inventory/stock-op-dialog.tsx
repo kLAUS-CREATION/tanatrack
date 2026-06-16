@@ -8,20 +8,12 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { Combobox, ComboboxOption } from "@/components/ui/combobox";
 import { IProduct } from "@/lib/features/services/product.api";
 import { IBranch } from "@/lib/features/services/branch.api";
 import { IWarehouse } from "@/lib/features/services/warehouse.api";
@@ -31,42 +23,71 @@ import {
   useAdjustStockMutation,
 } from "@/lib/features/services/inventory.api";
 
-// Encode/decode a location as `branch:<id>` | `warehouse:<id>` for the Select.
+// Encode/decode a location as `branch:<id>` | `warehouse:<id>` for the picker.
 export function decodeLocation(value: string): LocationInput {
   const [kind, id] = value.split(":");
   return kind === "branch" ? { branchId: id } : { warehouseId: id };
 }
 
-export function LocationOptions({
+// Grouped combobox options for branches + warehouses (values match decodeLocation).
+export function locationOptions(
+  branches: IBranch[],
+  warehouses: IWarehouse[],
+): ComboboxOption[] {
+  return [
+    ...branches.map((b) => ({
+      value: `branch:${b.id}`,
+      label: b.name,
+      group: "Branches",
+    })),
+    ...warehouses.map((w) => ({
+      value: `warehouse:${w.id}`,
+      label: w.name,
+      group: "Warehouses",
+    })),
+  ];
+}
+
+// Searchable branch/warehouse picker. Value is `branch:<id>` | `warehouse:<id>`.
+export function LocationCombobox({
   branches,
   warehouses,
+  value,
+  onChange,
+  placeholder = "Select a location",
+  disabled,
+  className,
 }: {
   branches: IBranch[];
   warehouses: IWarehouse[];
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  className?: string;
 }) {
   return (
-    <>
-      {branches.length > 0 && (
-        <SelectGroup>
-          <SelectLabel>Branches</SelectLabel>
-          {branches.map((b) => (
-            <SelectItem key={b.id} value={`branch:${b.id}`}>
-              {b.name}
-            </SelectItem>
-          ))}
-        </SelectGroup>
-      )}
-      {warehouses.length > 0 && (
-        <SelectGroup>
-          <SelectLabel>Warehouses</SelectLabel>
-          {warehouses.map((w) => (
-            <SelectItem key={w.id} value={`warehouse:${w.id}`}>
-              {w.name}
-            </SelectItem>
-          ))}
-        </SelectGroup>
-      )}
-    </>
+    <Combobox
+      options={locationOptions(branches, warehouses)}
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      searchPlaceholder="Search locations…"
+      emptyText="No locations found."
+      disabled={disabled}
+      className={className}
+    />
+  );
+}
+
+// Searchable product-variant picker options (label + SKU/name keywords).
+export function variantOptions(products: IProduct[]): ComboboxOption[] {
+  return products.flatMap((p) =>
+    (p.variants ?? []).map((v) => ({
+      value: v.id,
+      label: `${p.name} — ${v.name} (${v.sku})`,
+      keywords: [p.name, v.name, v.sku],
+    })),
   );
 }
 
@@ -109,13 +130,6 @@ export function StockOpDialog({
     }
   }, [isOpen]);
 
-  const variantOptions = products.flatMap((p) =>
-    (p.variants ?? []).map((v) => ({
-      id: v.id,
-      label: `${p.name} — ${v.name} (${v.sku})`,
-    })),
-  );
-
   const handleSubmit = async () => {
     if (!variantId || !location || quantity === "") {
       toast.error("Variant, location and quantity are required");
@@ -154,30 +168,24 @@ export function StockOpDialog({
         <div className="space-y-4 py-2">
           <div className="space-y-2">
             <Label>Product variant</Label>
-            <Select value={variantId} onValueChange={setVariantId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a variant" />
-              </SelectTrigger>
-              <SelectContent>
-                {variantOptions.map((o) => (
-                  <SelectItem key={o.id} value={o.id}>
-                    {o.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Combobox
+              options={variantOptions(products)}
+              value={variantId}
+              onChange={setVariantId}
+              placeholder="Select a variant"
+              searchPlaceholder="Search products…"
+              emptyText="No products found."
+            />
           </div>
 
           <div className="space-y-2">
             <Label>Location</Label>
-            <Select value={location} onValueChange={setLocation}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a location" />
-              </SelectTrigger>
-              <SelectContent>
-                <LocationOptions branches={branches} warehouses={warehouses} />
-              </SelectContent>
-            </Select>
+            <LocationCombobox
+              branches={branches}
+              warehouses={warehouses}
+              value={location}
+              onChange={setLocation}
+            />
           </div>
 
           <div className="space-y-2">

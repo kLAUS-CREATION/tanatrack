@@ -2,7 +2,14 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Store, Warehouse, Users, ShieldCheck, Building2 } from "lucide-react"
+import {
+  Store,
+  Warehouse,
+  Users,
+  ShieldCheck,
+  Building2,
+  ClipboardCheck,
+} from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useOrgAccess } from "@/lib/hooks/use-org-access"
 
@@ -11,6 +18,7 @@ const baseItems = [
   { title: "Warehouses", slug: "warehouses", icon: Warehouse },
   { title: "Members", slug: "members", icon: Users },
   { title: "Roles & Permissions", slug: "roles", icon: ShieldCheck },
+  { title: "Approvals", slug: "approvals", icon: ClipboardCheck },
 ]
 
 export function AdministrationNav() {
@@ -34,7 +42,7 @@ export function AdministrationNav() {
         return (
           <Link
             key={item.slug}
-            href={`/dashboard/${orgId}/administration/${item.slug}`}
+            href={`/organizations/${orgId}/administration/${item.slug}`}
             className={cn(
               "-mb-px inline-flex items-center gap-2 border-b-2 px-3 py-2 text-sm transition-colors",
               active

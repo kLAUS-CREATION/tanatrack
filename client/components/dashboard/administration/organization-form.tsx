@@ -14,7 +14,7 @@ import { toast } from "sonner";
 
 export function OrganizationForm() {
   const params = useParams();
-  const orgId = params.dashboardId as string;
+  const orgId = params.orgId as string;
 
   const { data: org, isLoading } = useGetOrganizationByIdQuery(orgId);
   const [updateOrganization, { isLoading: isSaving }] = useUpdateOrganizationMutation();

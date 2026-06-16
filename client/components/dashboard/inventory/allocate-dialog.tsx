@@ -17,69 +17,70 @@ import { Combobox } from "@/components/ui/combobox";
 import { IProduct } from "@/lib/features/services/product.api";
 import { IBranch } from "@/lib/features/services/branch.api";
 import { IWarehouse } from "@/lib/features/services/warehouse.api";
-import { useTransferStockMutation } from "@/lib/features/services/inventory.api";
+import { useCreateAllocationMutation } from "@/lib/features/services/allocation.api";
+import { isPendingChange } from "@/lib/features/services/change-request.api";
 import {
   LocationCombobox,
   decodeLocation,
   variantOptions,
 } from "./stock-op-dialog";
 
-interface TransferDialogProps {
+interface AllocateDialogProps {
   isOpen: boolean;
   onClose: () => void;
   orgId: string;
   products: IProduct[];
   branches: IBranch[];
   warehouses: IWarehouse[];
+  /** When the actor isn't an approver, the move is queued for approval. */
+  needsApproval?: boolean;
 }
 
-export function TransferDialog({
+export function AllocateDialog({
   isOpen,
   onClose,
   orgId,
   products,
   branches,
   warehouses,
-}: TransferDialogProps) {
+  needsApproval,
+}: AllocateDialogProps) {
   const [variantId, setVariantId] = useState("");
-  const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [quantity, setQuantity] = useState("");
 
-  const [transferStock, { isLoading }] = useTransferStockMutation();
+  const [createAllocation, { isLoading }] = useCreateAllocationMutation();
 
   useEffect(() => {
     if (isOpen) {
       setVariantId("");
-      setFrom("");
       setTo("");
       setQuantity("");
     }
   }, [isOpen]);
 
   const handleSubmit = async () => {
-    if (!variantId || !from || !to || quantity === "") {
-      toast.error("All fields are required");
-      return;
-    }
-    if (from === to) {
-      toast.error("Source and destination must differ");
+    if (!variantId || !to || quantity === "") {
+      toast.error("Product, destination and quantity are required");
       return;
     }
     try {
-      await transferStock({
+      const res = await createAllocation({
         orgId,
         body: {
           variantId,
           quantity: Number(quantity),
-          from: decodeLocation(from),
-          to: decodeLocation(to),
+          ...decodeLocation(to),
         },
       }).unwrap();
-      toast.success("Stock transferred");
+      toast.success(
+        isPendingChange(res)
+          ? "Allocation submitted for approval"
+          : "Stock allocated",
+      );
       onClose();
     } catch (error: any) {
-      toast.error(error?.data?.message || "Transfer failed");
+      toast.error(error?.data?.message || "Allocation failed");
     }
   };
 
@@ -87,9 +88,13 @@ export function TransferDialog({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
-          <DialogTitle>Transfer Stock</DialogTitle>
+          <DialogTitle>Allocate Received Stock</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
+          <p className="text-xs text-muted-foreground">
+            Move purchased stock from the receiving pool to a branch or warehouse.
+          </p>
+
           <div className="space-y-2">
             <Label>Product variant</Label>
             <Combobox
@@ -105,13 +110,7 @@ export function TransferDialog({
           <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2">
             <div className="space-y-2">
               <Label>From</Label>
-              <LocationCombobox
-                branches={branches}
-                warehouses={warehouses}
-                value={from}
-                onChange={setFrom}
-                placeholder="Source"
-              />
+              <Input value="Receiving pool" disabled readOnly />
             </div>
             <ArrowRight className="h-4 w-4 mb-3 text-muted-foreground" />
             <div className="space-y-2">
@@ -143,7 +142,7 @@ export function TransferDialog({
           </Button>
           <Button onClick={handleSubmit} disabled={isLoading}>
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Transfer
+            {needsApproval ? "Submit for approval" : "Allocate"}
           </Button>
         </DialogFooter>
       </DialogContent>
