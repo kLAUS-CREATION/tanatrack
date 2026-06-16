@@ -1,4 +1,5 @@
 import { apiSlice } from "../api";
+import type { MaybePending } from "./change-request.api";
 
 export enum ProductUnit {
   PIECE = "PIECE",
@@ -73,6 +74,16 @@ export interface UpdateProductRequest {
   isActive?: boolean;
 }
 
+// --- product change approval (maker–checker) ---
+// The maker-checker engine is unified org-wide; types live in change-request.api.
+// Re-exported here so existing product callers keep their imports.
+export {
+  isPendingChange,
+  type MaybePending,
+  type IChangeRequest,
+  type IChangeActor,
+} from "./change-request.api";
+
 export const productApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
     // --- products ---
@@ -98,7 +109,7 @@ export const productApi = apiSlice.injectEndpoints({
     }),
 
     createProduct: builder.mutation<
-      IProduct,
+      MaybePending<IProduct>,
       { orgId: string; body: CreateProductRequest }
     >({
       query: ({ orgId, body }) => ({
@@ -106,11 +117,14 @@ export const productApi = apiSlice.injectEndpoints({
         method: "POST",
         body,
       }),
-      invalidatesTags: [{ type: "Product", id: "LIST" }],
+      invalidatesTags: [
+        { type: "Product", id: "LIST" },
+        { type: "ChangeRequest", id: "LIST" },
+      ],
     }),
 
     updateProduct: builder.mutation<
-      IProduct,
+      MaybePending<IProduct>,
       { orgId: string; productId: string; body: UpdateProductRequest }
     >({
       query: ({ orgId, productId, body }) => ({
@@ -121,20 +135,27 @@ export const productApi = apiSlice.injectEndpoints({
       invalidatesTags: (result, error, { productId }) => [
         { type: "Product", id: productId },
         { type: "Product", id: "LIST" },
+        { type: "ChangeRequest", id: "LIST" },
       ],
     }),
 
-    deleteProduct: builder.mutation<void, { orgId: string; productId: string }>({
+    deleteProduct: builder.mutation<
+      MaybePending<void>,
+      { orgId: string; productId: string }
+    >({
       query: ({ orgId, productId }) => ({
         url: `/org/${orgId}/products/${productId}`,
         method: "DELETE",
       }),
-      invalidatesTags: [{ type: "Product", id: "LIST" }],
+      invalidatesTags: [
+        { type: "Product", id: "LIST" },
+        { type: "ChangeRequest", id: "LIST" },
+      ],
     }),
 
     // --- variants ---
     addVariant: builder.mutation<
-      IProductVariant,
+      MaybePending<IProductVariant>,
       { orgId: string; productId: string; body: VariantInput }
     >({
       query: ({ orgId, productId, body }) => ({
@@ -145,11 +166,12 @@ export const productApi = apiSlice.injectEndpoints({
       invalidatesTags: (result, error, { productId }) => [
         { type: "Product", id: productId },
         { type: "Product", id: "LIST" },
+        { type: "ChangeRequest", id: "LIST" },
       ],
     }),
 
     updateVariant: builder.mutation<
-      IProductVariant,
+      MaybePending<IProductVariant>,
       { orgId: string; productId: string; variantId: string; body: VariantInput }
     >({
       query: ({ orgId, productId, variantId, body }) => ({
@@ -160,11 +182,12 @@ export const productApi = apiSlice.injectEndpoints({
       invalidatesTags: (result, error, { productId }) => [
         { type: "Product", id: productId },
         { type: "Product", id: "LIST" },
+        { type: "ChangeRequest", id: "LIST" },
       ],
     }),
 
     deleteVariant: builder.mutation<
-      void,
+      MaybePending<void>,
       { orgId: string; productId: string; variantId: string }
     >({
       query: ({ orgId, productId, variantId }) => ({
@@ -174,6 +197,7 @@ export const productApi = apiSlice.injectEndpoints({
       invalidatesTags: (result, error, { productId }) => [
         { type: "Product", id: productId },
         { type: "Product", id: "LIST" },
+        { type: "ChangeRequest", id: "LIST" },
       ],
     }),
 
@@ -187,7 +211,7 @@ export const productApi = apiSlice.injectEndpoints({
     }),
 
     createCategory: builder.mutation<
-      IProductCategory,
+      MaybePending<IProductCategory>,
       { orgId: string; body: { name: string } }
     >({
       query: ({ orgId, body }) => ({
@@ -195,11 +219,14 @@ export const productApi = apiSlice.injectEndpoints({
         method: "POST",
         body,
       }),
-      invalidatesTags: [{ type: "ProductCategory", id: "LIST" }],
+      invalidatesTags: [
+        { type: "ProductCategory", id: "LIST" },
+        { type: "ChangeRequest", id: "LIST" },
+      ],
     }),
 
     updateCategory: builder.mutation<
-      IProductCategory,
+      MaybePending<IProductCategory>,
       { orgId: string; categoryId: string; body: { name: string } }
     >({
       query: ({ orgId, categoryId, body }) => ({
@@ -207,18 +234,24 @@ export const productApi = apiSlice.injectEndpoints({
         method: "PUT",
         body,
       }),
-      invalidatesTags: [{ type: "ProductCategory", id: "LIST" }],
+      invalidatesTags: [
+        { type: "ProductCategory", id: "LIST" },
+        { type: "ChangeRequest", id: "LIST" },
+      ],
     }),
 
     deleteCategory: builder.mutation<
-      void,
+      MaybePending<void>,
       { orgId: string; categoryId: string }
     >({
       query: ({ orgId, categoryId }) => ({
         url: `/org/${orgId}/product-categories/${categoryId}`,
         method: "DELETE",
       }),
-      invalidatesTags: [{ type: "ProductCategory", id: "LIST" }],
+      invalidatesTags: [
+        { type: "ProductCategory", id: "LIST" },
+        { type: "ChangeRequest", id: "LIST" },
+      ],
     }),
   }),
 });

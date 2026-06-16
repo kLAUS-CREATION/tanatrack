@@ -1,5 +1,6 @@
 import { apiSlice } from "../api";
 import type { IProductVariant } from "./product.api";
+import type { MaybePending } from "./change-request.api";
 
 export interface IPurchaseItem {
   id: string;
@@ -16,6 +17,7 @@ export interface IPurchase {
   organizationId: string;
   branchId?: string | null;
   warehouseId?: string | null;
+  supplierId?: string | null;
   supplierName?: string | null;
   reference?: string | null;
   receivedBy: string;
@@ -24,6 +26,7 @@ export interface IPurchase {
   items?: IPurchaseItem[];
   branch?: { id: string; name: string } | null;
   warehouse?: { id: string; name: string } | null;
+  supplier?: { id: string; name: string } | null;
 }
 
 export interface PurchaseItemInput {
@@ -32,9 +35,10 @@ export interface PurchaseItemInput {
   unitCost?: number;
 }
 
+// Purchases receive into the org receiving pool (no location); stock is allocated
+// to a branch/warehouse later via the Allocations flow.
 export interface CreatePurchaseRequest {
-  branchId?: string;
-  warehouseId?: string;
+  supplierId?: string;
   supplierName?: string;
   reference?: string;
   items: PurchaseItemInput[];
@@ -59,8 +63,10 @@ export const purchaseApi = apiSlice.injectEndpoints({
       },
     ),
 
+    // Makers' purchases queue as a change request (no stock moves until
+    // approved); approvers apply instantly. Hence the MaybePending result.
     createPurchase: builder.mutation<
-      IPurchase,
+      MaybePending<IPurchase>,
       { orgId: string; body: CreatePurchaseRequest }
     >({
       query: ({ orgId, body }) => ({
@@ -73,6 +79,7 @@ export const purchaseApi = apiSlice.injectEndpoints({
         { type: "StockLevel", id: "LIST" },
         { type: "StockMovement", id: "LIST" },
         { type: "Report", id: "OVERVIEW" },
+        { type: "ChangeRequest", id: "LIST" },
       ],
     }),
   }),

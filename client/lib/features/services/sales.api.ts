@@ -16,6 +16,7 @@ export interface ISale {
   organizationId: string;
   branchId: string;
   soldBy: string;
+  customerId?: string | null;
   customerName?: string | null;
   customerPhone?: string | null;
   subtotal: number;
@@ -23,6 +24,7 @@ export interface ISale {
   createdAt: string;
   items?: ISaleItem[];
   branch?: { id: string; name: string };
+  customer?: { id: string; name: string } | null;
 }
 
 export interface SaleItemInput {
@@ -33,6 +35,7 @@ export interface SaleItemInput {
 
 export interface CreateSaleRequest {
   branchId: string;
+  customerId?: string;
   customerName?: string;
   customerPhone?: string;
   items: SaleItemInput[];
