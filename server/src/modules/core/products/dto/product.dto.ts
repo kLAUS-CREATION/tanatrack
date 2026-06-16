@@ -100,3 +100,9 @@ export class CreateCategoryDto {
 }
 
 export class UpdateCategoryDto extends CreateCategoryDto {}
+
+export class RejectChangeDto {
+  @IsString()
+  @IsOptional()
+  reason?: string;
+}

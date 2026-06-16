@@ -26,16 +26,9 @@ export class PurchaseItemDto {
   unitCost?: number;
 }
 
-// Destination: exactly one of branchId / warehouseId (service-enforced).
+// Purchases receive stock into the org-wide receiving pool (no location); it is
+// allocated to a branch/warehouse later via the Allocations flow.
 export class CreatePurchaseDto {
-  @IsString()
-  @IsOptional()
-  branchId?: string;
-
-  @IsString()
-  @IsOptional()
-  warehouseId?: string;
-
   // Optional link to a saved supplier; free-text supplierName still supported.
   @IsString()
   @IsOptional()
