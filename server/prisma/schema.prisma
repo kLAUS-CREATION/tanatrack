@@ -106,6 +106,8 @@ model Organization {
   customers         Customer[]
   suppliers         Supplier[]
 
+  changeRequests ChangeRequest[]
+
   @@map("organization")
 }
 
@@ -489,7 +491,9 @@ model ProductVariant {
 }
 
 // --- STOCK (quantity per location — the "how many / where") ---
-// Exactly one of branchId / warehouseId is set per row (enforced in the service layer).
+// Zero-or-one of branchId / warehouseId is set per row (enforced in the service layer):
+// one set = stock at that branch/warehouse; BOTH null = the org-wide receiving pool
+// (purchased-but-unallocated stock). A partial unique index keeps one pool row/variant.
 model StockLevel {
   id           String   @id @default(cuid())
   variantId    String
@@ -761,4 +765,59 @@ enum MovementType {
   SALE_OUT    // stock leaving a branch via a sale (from-side set)
   TRANSFER    // stock moved location→location (both sides set)
   ADJUSTMENT  // manual correction (sign encoded by which side is set)
+}
+
+// --- CHANGE APPROVAL (maker–checker) — products, categories, suppliers, … ---
+
+enum ChangeStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ChangeEntity {
+  PRODUCT
+  VARIANT
+  CATEGORY
+  SUPPLIER
+  PURCHASE
+  STOCK_MOVE
+}
+
+enum ChangeOp {
+  CREATE
+  UPDATE
+  DELETE
+}
+
+// Doubles as the approval queue AND the audit log across every maker-checker
+// domain. A manager-permission member's action lands here as PENDING (mutates
+// nothing until approved); an Owner / ADMINISTRATION_ACCESS member's action is
+// applied instantly and recorded here as already-APPROVED. requestedBy/reviewedBy
+// are raw userIds (no FK), matching the StockMovement ledger pattern; names are
+// resolved at read time.
+model ChangeRequest {
+  id             String       @id @default(cuid())
+  organizationId String
+  entity         ChangeEntity
+  operation      ChangeOp
+  productId      String? // product target, or the variant's parent product
+  variantId      String? // variant target (UPDATE/DELETE)
+  categoryId     String? // category target (UPDATE/DELETE)
+  supplierId     String? // supplier target (UPDATE/DELETE)
+  payload        Json? // the create/update DTO snapshot; null for DELETE
+  status         ChangeStatus @default(PENDING)
+  requestedBy    String // userId — who requested / acted
+  reviewedBy     String? // userId of the approver
+  reviewedAt     DateTime?
+  reason         String? // rejection reason / note
+  appliedRefId   String? // id of the row created/affected when applied
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status])
+  @@index([requestedBy])
+  @@map("change_request")
 }
