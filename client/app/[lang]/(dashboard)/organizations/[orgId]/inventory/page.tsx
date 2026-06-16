@@ -13,8 +13,9 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Boxes, PackagePlus, SlidersHorizontal, ArrowLeftRight } from "lucide-react";
+import { TableSkeleton } from "@/components/dashboard/shared/table-skeleton";
+import { EmptyState } from "@/components/dashboard/shared/empty-state";
+import { Boxes, PackagePlus, SlidersHorizontal, ArrowLeftRight, PackageCheck } from "lucide-react";
 import { useOrgAccess } from "@/lib/hooks/use-org-access";
 import { useGetProductsQuery } from "@/lib/features/services/product.api";
 import { useGetBranchesQuery } from "@/lib/features/services/branch.api";
@@ -27,13 +28,17 @@ import {
 } from "@/lib/features/services/inventory.api";
 import { StockOpDialog } from "@/components/dashboard/inventory/stock-op-dialog";
 import { TransferDialog } from "@/components/dashboard/inventory/transfer-dialog";
+import { AllocateDialog } from "@/components/dashboard/inventory/allocate-dialog";
 
 const INVENTORY_ADJUST = "INVENTORY_ADJUST_STOCK";
 const INVENTORY_PURCHASE = "INVENTORY_PURCHASE_IN";
 const INVENTORY_TRANSFER = "INVENTORY_TRANSFER_STOCK";
+const INVENTORY_MANAGE = "INVENTORY_MANAGE";
 
 function locationName(s: IStockLevel) {
-  return s.branch?.name ?? s.warehouse?.name ?? "—";
+  if (s.branch?.name) return s.branch.name;
+  if (s.warehouse?.name) return s.warehouse.name;
+  return "Unallocated (Receiving)";
 }
 
 function movementLocation(m: IStockMovement) {
@@ -47,10 +52,13 @@ function movementLocation(m: IStockMovement) {
 
 export default function InventoryPage() {
   const params = useParams();
-  const orgId = params.dashboardId as string;
+  const orgId = params.orgId as string;
 
-  const { isOwner, permissions } = useOrgAccess(orgId);
+  const { isOwner, canAdminister, permissions } = useOrgAccess(orgId);
   const can = (p: string) => isOwner || permissions.includes(p);
+  // INVENTORY_MANAGE holders queue allocations; owner/admins apply instantly.
+  const canAllocate = isOwner || canAdminister || permissions.includes(INVENTORY_MANAGE);
+  const allocationNeedsApproval = canAllocate && !isOwner && !canAdminister;
 
   const { data: stock, isLoading } = useGetGlobalStockQuery(orgId);
   const { data: movements } = useGetMovementsQuery({ orgId });
@@ -61,6 +69,7 @@ export default function InventoryPage() {
   const [purchaseOpen, setPurchaseOpen] = useState(false);
   const [adjustOpen, setAdjustOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
+  const [allocateOpen, setAllocateOpen] = useState(false);
 
   return (
     <div className="w-full mx-auto min-h-full">
@@ -73,11 +82,20 @@ export default function InventoryPage() {
             Stock levels across every branch and warehouse.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {canAllocate && (
+            <Button
+              variant="outline"
+              className="gap-2 rounded-lg transition-all hover:bg-primary/5 hover:text-primary hover:border-primary/30"
+              onClick={() => setAllocateOpen(true)}
+            >
+              <PackageCheck className="h-4 w-4" /> Allocate
+            </Button>
+          )}
           {can(INVENTORY_PURCHASE) && (
             <Button
               variant="outline"
-              className="gap-2 rounded-sm"
+              className="gap-2 rounded-lg transition-all hover:bg-primary/5 hover:text-primary hover:border-primary/30"
               onClick={() => setPurchaseOpen(true)}
             >
               <PackagePlus className="h-4 w-4" /> Receive
@@ -86,7 +104,7 @@ export default function InventoryPage() {
           {can(INVENTORY_TRANSFER) && (
             <Button
               variant="outline"
-              className="gap-2 rounded-sm"
+              className="gap-2 rounded-lg transition-all hover:bg-primary/5 hover:text-primary hover:border-primary/30"
               onClick={() => setTransferOpen(true)}
             >
               <ArrowLeftRight className="h-4 w-4" /> Transfer
@@ -94,7 +112,7 @@ export default function InventoryPage() {
           )}
           {can(INVENTORY_ADJUST) && (
             <Button
-              className="gap-2 rounded-sm"
+              className="gap-2 rounded-lg shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30"
               onClick={() => setAdjustOpen(true)}
             >
               <SlidersHorizontal className="h-4 w-4" /> Adjust
@@ -103,30 +121,25 @@ export default function InventoryPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="stock">
-        <TabsList>
-          <TabsTrigger value="stock">Stock Levels</TabsTrigger>
-          <TabsTrigger value="movements">Movements</TabsTrigger>
+      <Tabs defaultValue="stock" className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+        <TabsList className="bg-muted/50 p-1 rounded-xl">
+          <TabsTrigger value="stock" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">Stock Levels</TabsTrigger>
+          <TabsTrigger value="movements" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">Movements</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="stock" className="mt-4">
+        <TabsContent value="stock" className="mt-6">
           {isLoading ? (
-            <div className="space-y-2">
-              {[1, 2, 3].map((i) => (
-                <Skeleton key={i} className="h-12 w-full rounded-sm" />
-              ))}
-            </div>
+            <TableSkeleton cols={4} />
           ) : !stock || stock.length === 0 ? (
-            <div className="flex flex-col items-center justify-center p-12 bg-muted/20 rounded-sm text-center">
-              <Boxes className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold">No stock yet</h3>
-              <p className="text-muted-foreground">
-                Receive stock into a location to get started.
-              </p>
-            </div>
+            <EmptyState
+              icon={Boxes}
+              title="No stock yet"
+              description="Receive stock into a location to get started with your inventory management."
+            />
           ) : (
-            <div className="rounded-sm border border-border bg-background2">
+            <div className="rounded-2xl border border-border/50 bg-card shadow-sm overflow-hidden animate-in fade-in duration-500">
               <Table>
+
                 <TableHeader>
                   <TableRow>
                     <TableHead>Product</TableHead>
@@ -165,18 +178,17 @@ export default function InventoryPage() {
           )}
         </TabsContent>
 
-        <TabsContent value="movements" className="mt-4">
+        <TabsContent value="movements" className="mt-6">
           {!movements || movements.length === 0 ? (
-            <div className="flex flex-col items-center justify-center p-12 bg-muted/20 rounded-sm text-center">
-              <ArrowLeftRight className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold">No movements yet</h3>
-              <p className="text-muted-foreground">
-                Stock changes will appear here as an audit trail.
-              </p>
-            </div>
+            <EmptyState
+              icon={ArrowLeftRight}
+              title="No movements yet"
+              description="Stock changes will appear here as a comprehensive audit trail."
+            />
           ) : (
-            <div className="rounded-sm border border-border bg-background2">
+            <div className="rounded-2xl border border-border/50 bg-card shadow-sm overflow-hidden animate-in fade-in duration-500">
               <Table>
+
                 <TableHeader>
                   <TableRow>
                     <TableHead>When</TableHead>
@@ -234,6 +246,15 @@ export default function InventoryPage() {
         products={products ?? []}
         branches={branches ?? []}
         warehouses={warehouses ?? []}
+      />
+      <AllocateDialog
+        isOpen={allocateOpen}
+        onClose={() => setAllocateOpen(false)}
+        orgId={orgId}
+        products={products ?? []}
+        branches={branches ?? []}
+        warehouses={warehouses ?? []}
+        needsApproval={allocationNeedsApproval}
       />
     </div>
   );

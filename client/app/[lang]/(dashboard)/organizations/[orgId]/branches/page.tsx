@@ -11,11 +11,11 @@ import { BranchList } from "@/components/dashboard/locations/branch-list";
 
 export default function BranchesPage() {
     const params = useParams();
-    const dashboardId = params.dashboardId as string;
+    const orgId = params.orgId as string;
 
     const [view, setView] = useState<LocationView>("grid");
 
-    const { data: branches, isLoading } = useGetBranchesQuery(dashboardId);
+    const { data: branches, isLoading } = useGetBranchesQuery(orgId);
 
     return (
         <div className="w-full mx-auto min-h-full">

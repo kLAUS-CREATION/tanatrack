@@ -52,7 +52,7 @@ function StatCard({
 
 export default function ReportsPage() {
   const params = useParams();
-  const orgId = params.dashboardId as string;
+  const orgId = params.orgId as string;
 
   const { data, isLoading } = useGetReportOverviewQuery(orgId);
 

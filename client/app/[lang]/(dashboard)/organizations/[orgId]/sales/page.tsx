@@ -12,7 +12,8 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { PageShell } from "@/components/dashboard/shared/page-shell";
+import { EmptyState } from "@/components/dashboard/shared/empty-state";
 import { Receipt, Plus } from "lucide-react";
 import { formatMoney } from "@/lib/utils";
 import { useOrgAccess } from "@/lib/hooks/use-org-access";
@@ -25,7 +26,7 @@ const SALES_CREATE = "SALES_CREATE";
 
 export default function SalesPage() {
   const params = useParams();
-  const orgId = params.dashboardId as string;
+  const orgId = params.orgId as string;
 
   const { isOwner, permissions } = useOrgAccess(orgId);
   const canSell = isOwner || permissions.includes(SALES_CREATE);
@@ -37,40 +38,33 @@ export default function SalesPage() {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="w-full mx-auto min-h-full">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Sales
-          </h1>
-          <p className="text-muted-foreground">
-            Record sales and review transaction history.
-          </p>
-        </div>
-        {canSell && (
-          <Button onClick={() => setIsOpen(true)} className="gap-2 rounded-sm">
-            <Plus className="h-4 w-4" /> New Sale
-          </Button>
-        )}
-      </div>
-
-      {isLoading ? (
-        <div className="space-y-2">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-12 w-full rounded-sm" />
-          ))}
-        </div>
-      ) : !sales || sales.length === 0 ? (
-        <div className="flex flex-col items-center justify-center p-12 bg-muted/20 rounded-sm text-center">
-          <Receipt className="h-12 w-12 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-semibold">No sales yet</h3>
-          <p className="text-muted-foreground">
-            {canSell
-              ? "Record your first sale to see it here."
-              : "No sales have been recorded yet."}
-          </p>
-        </div>
-      ) : (
+    <>
+      <PageShell
+        title="Sales"
+        subtitle="Record sales and review transaction history."
+        actionCount={canSell ? 1 : 0}
+        actions={
+          canSell && (
+            <Button onClick={() => setIsOpen(true)} className="gap-2 rounded-sm">
+              <Plus className="h-4 w-4" /> New Sale
+            </Button>
+          )
+        }
+        loading={isLoading}
+        empty={!sales || sales.length === 0}
+        skeletonCols={5}
+        emptyState={
+          <EmptyState
+            icon={Receipt}
+            title="No sales yet"
+            description={
+              canSell
+                ? "Record your first sale to see it here."
+                : "No sales have been recorded yet."
+            }
+          />
+        }
+      >
         <div className="rounded-sm border border-border bg-background2">
           <Table>
             <TableHeader>
@@ -83,7 +77,7 @@ export default function SalesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sales.map((s) => (
+              {sales?.map((s) => (
                 <TableRow key={s.id}>
                   <TableCell className="text-xs text-muted-foreground">
                     {new Date(s.createdAt).toLocaleString()}
@@ -101,7 +95,7 @@ export default function SalesPage() {
             </TableBody>
           </Table>
         </div>
-      )}
+      </PageShell>
 
       <NewSaleDialog
         isOpen={isOpen}
@@ -110,6 +104,6 @@ export default function SalesPage() {
         products={products ?? []}
         branches={branches ?? []}
       />
-    </div>
+    </>
   );
 }

@@ -13,13 +13,15 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { PageShell } from "@/components/dashboard/shared/page-shell";
+import { EmptyState } from "@/components/dashboard/shared/empty-state";
 import { Package, Edit, Trash2, Layers, FolderTree } from "lucide-react";
 import { formatMoney } from "@/lib/utils";
 import { useOrgAccess } from "@/lib/hooks/use-org-access";
 import {
   IProduct,
   CreateProductRequest,
+  isPendingChange,
   useGetProductsQuery,
   useGetCategoriesQuery,
   useCreateProductMutation,
@@ -29,6 +31,8 @@ import {
 import { ProductForm } from "@/components/dashboard/products/product-form";
 import { CategoryManager } from "@/components/dashboard/products/category-manager";
 import { VariantManager } from "@/components/dashboard/products/variant-manager";
+import { PendingProductChanges } from "@/components/dashboard/products/pending-product-changes";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 const PRODUCTS_MANAGE = "PRODUCTS_MANAGE";
 
@@ -42,10 +46,14 @@ function priceRange(p: IProduct): string {
 
 export default function ProductsPage() {
   const params = useParams();
-  const orgId = params.dashboardId as string;
+  const orgId = params.orgId as string;
 
-  const { isOwner, permissions } = useOrgAccess(orgId);
-  const canManage = isOwner || permissions.includes(PRODUCTS_MANAGE);
+  const { isOwner, canAdminister, permissions } = useOrgAccess(orgId);
+  // Admins (ADMINISTRATION_ACCESS) and PRODUCTS_MANAGE holders can both manage
+  // the catalog; admins apply instantly, makers' changes go to the approval queue.
+  const canManage =
+    isOwner || canAdminister || permissions.includes(PRODUCTS_MANAGE);
+  const needsApproval = canManage && !canAdminister;
 
   const { data: products, isLoading } = useGetProductsQuery(orgId);
   const { data: categories } = useGetCategoriesQuery(orgId);
@@ -58,11 +66,12 @@ export default function ProductsPage() {
   const [editing, setEditing] = useState<IProduct | null>(null);
   const [isCatOpen, setIsCatOpen] = useState(false);
   const [variantProduct, setVariantProduct] = useState<IProduct | null>(null);
+  const [ConfirmDialog, confirm] = useConfirm();
 
   const handleSubmit = async (data: CreateProductRequest) => {
     try {
       if (editing) {
-        await updateProduct({
+        const res = await updateProduct({
           orgId,
           productId: editing.id,
           body: {
@@ -72,10 +81,16 @@ export default function ProductsPage() {
             unit: data.unit,
           },
         }).unwrap();
-        toast.success("Product updated");
+        toast.success(
+          isPendingChange(res) ? "Update submitted for approval" : "Product updated",
+        );
       } else {
-        await createProduct({ orgId, body: data }).unwrap();
-        toast.success("Product created");
+        const res = await createProduct({ orgId, body: data }).unwrap();
+        toast.success(
+          isPendingChange(res)
+            ? "Product submitted for approval"
+            : "Product created",
+        );
       }
     } catch (error: any) {
       toast.error(error?.data?.message || "Failed to save product");
@@ -83,61 +98,75 @@ export default function ProductsPage() {
   };
 
   const handleDelete = async (productId: string) => {
-    if (!confirm("Delete this product and all its variants?")) return;
+    const ok = await confirm({
+      title: needsApproval ? "Request product deletion?" : "Delete product?",
+      description: needsApproval
+        ? "This sends a request to delete this product to an administrator for approval."
+        : "This permanently deletes the product and all of its variants. This action cannot be undone.",
+      confirmText: needsApproval ? "Submit request" : "Delete",
+    });
+    if (!ok) return;
     try {
-      await deleteProduct({ orgId, productId }).unwrap();
-      toast.success("Product deleted");
+      const res = await deleteProduct({ orgId, productId }).unwrap();
+      toast.success(
+        isPendingChange(res) ? "Deletion submitted for approval" : "Product deleted",
+      );
     } catch (error: any) {
       toast.error(error?.data?.message || "Failed to delete product");
     }
   };
 
   return (
-    <div className="w-full mx-auto min-h-full">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Products
-          </h1>
-          <p className="text-muted-foreground">
-            Your organization-wide product catalog.
-          </p>
-        </div>
-        {canManage && (
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => setIsCatOpen(true)} className="gap-2 rounded-sm">
-              <FolderTree className="h-4 w-4" /> Categories
-            </Button>
-            <Button
-              onClick={() => {
-                setEditing(null);
-                setIsFormOpen(true);
-              }}
-              className="gap-2 rounded-sm"
-            >
-              <Package className="h-4 w-4" /> Add Product
-            </Button>
-          </div>
-        )}
-      </div>
-
-      {isLoading ? (
-        <div className="space-y-2">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-12 w-full rounded-sm" />
-          ))}
-        </div>
-      ) : !products || products.length === 0 ? (
-        <div className="flex flex-col items-center justify-center p-12 bg-muted/20 rounded-sm text-center">
-          <Package className="h-12 w-12 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-semibold">No products yet</h3>
-          <p className="text-muted-foreground">
-            {canManage
-              ? "Create your first product to start tracking stock."
-              : "No products have been added yet."}
-          </p>
-        </div>
-      ) : (
+    <>
+      <PageShell
+        title="Products"
+        subtitle="Your organization-wide product catalog."
+        actionCount={canManage ? 2 : 0}
+        actions={
+          canManage && (
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={() => setIsCatOpen(true)} className="gap-2 rounded-sm">
+                <FolderTree className="h-4 w-4" /> Categories
+              </Button>
+              <Button
+                onClick={() => {
+                  setEditing(null);
+                  setIsFormOpen(true);
+                }}
+                className="gap-2 rounded-sm"
+              >
+                <Package className="h-4 w-4" /> Add Product
+              </Button>
+            </div>
+          )
+        }
+        banner={
+          <>
+            {/* Approvers see the queue; makers see a heads-up that changes need sign-off. */}
+            {canAdminister && <PendingProductChanges orgId={orgId} />}
+            {needsApproval && (
+              <div className="mb-6 rounded-sm border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm text-muted-foreground">
+                Your product changes are submitted for approval by an
+                administrator before they take effect.
+              </div>
+            )}
+          </>
+        }
+        loading={isLoading}
+        empty={!products || products.length === 0}
+        skeletonCols={canManage ? 7 : 6}
+        emptyState={
+          <EmptyState
+            icon={Package}
+            title="No products yet"
+            description={
+              canManage
+                ? "Create your first product to start tracking stock."
+                : "No products have been added yet."
+            }
+          />
+        }
+      >
         <div className="rounded-sm border border-border bg-background2">
           <Table>
             <TableHeader>
@@ -152,7 +181,7 @@ export default function ProductsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {products.map((p) => (
+              {products?.map((p) => (
                 <TableRow key={p.id}>
                   <TableCell className="font-medium">{p.name}</TableCell>
                   <TableCell>{p.category?.name ?? "—"}</TableCell>
@@ -203,7 +232,7 @@ export default function ProductsPage() {
             </TableBody>
           </Table>
         </div>
-      )}
+      </PageShell>
 
       <ProductForm
         isOpen={isFormOpen}
@@ -225,6 +254,7 @@ export default function ProductsPage() {
         orgId={orgId}
         product={variantProduct}
       />
-    </div>
+      {ConfirmDialog}
+    </>
   );
 }

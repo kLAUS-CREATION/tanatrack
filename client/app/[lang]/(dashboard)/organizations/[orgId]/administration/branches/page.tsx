@@ -13,24 +13,26 @@ import { LocationHeader } from "@/components/dashboard/locations/location-header
 import { LocationView } from "@/components/dashboard/locations/view-toggle";
 import { BranchList } from "@/components/dashboard/locations/branch-list";
 import { BranchForm } from "@/components/dashboard/locations/branch-form";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { toast } from "sonner";
 
 export default function AdminBranchesPage() {
     const params = useParams();
-    const dashboardId = params.dashboardId as string;
+    const orgId = params.orgId as string;
 
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingBranch, setEditingBranch] = useState<IBranch | null>(null);
     const [view, setView] = useState<LocationView>("grid");
+    const [ConfirmDialog, confirm] = useConfirm();
 
-    const { data: branches, isLoading } = useGetBranchesQuery(dashboardId);
+    const { data: branches, isLoading } = useGetBranchesQuery(orgId);
     const [createBranch, { isLoading: isCreating }] = useCreateBranchMutation();
     const [updateBranch, { isLoading: isUpdating }] = useUpdateBranchMutation();
     const [deleteBranch] = useDeleteBranchMutation();
 
     const handleCreate = async (data: any) => {
         try {
-            await createBranch({ orgId: dashboardId, body: data }).unwrap();
+            await createBranch({ orgId: orgId, body: data }).unwrap();
             toast.success("Branch created successfully");
         } catch (error: any) {
             toast.error(error?.data?.message || "Failed to create branch");
@@ -41,7 +43,7 @@ export default function AdminBranchesPage() {
         if (!editingBranch) return;
         try {
             await updateBranch({
-                orgId: dashboardId,
+                orgId: orgId,
                 branchId: editingBranch.id,
                 body: data,
             }).unwrap();
@@ -52,13 +54,18 @@ export default function AdminBranchesPage() {
     };
 
     const handleDelete = async (branchId: string) => {
-        if (confirm("Are you sure you want to delete this branch?")) {
-            try {
-                await deleteBranch({ orgId: dashboardId, branchId }).unwrap();
-                toast.success("Branch deleted successfully");
-            } catch (error: any) {
-                toast.error(error?.data?.message || "Failed to delete branch");
-            }
+        const ok = await confirm({
+            title: "Delete branch?",
+            description:
+                "This permanently removes the branch. This action cannot be undone.",
+            confirmText: "Delete",
+        });
+        if (!ok) return;
+        try {
+            await deleteBranch({ orgId: orgId, branchId }).unwrap();
+            toast.success("Branch deleted successfully");
+        } catch (error: any) {
+            toast.error(error?.data?.message || "Failed to delete branch");
         }
     };
 
@@ -98,6 +105,7 @@ export default function AdminBranchesPage() {
                 initialData={editingBranch}
                 isLoading={isCreating || isUpdating}
             />
+            {ConfirmDialog}
         </div>
     );
 }

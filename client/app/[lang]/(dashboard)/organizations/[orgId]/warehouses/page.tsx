@@ -11,11 +11,11 @@ import { WarehouseList } from "@/components/dashboard/locations/warehouse-list";
 
 export default function WarehousesPage() {
     const params = useParams();
-    const dashboardId = params.dashboardId as string;
+    const orgId = params.orgId as string;
 
     const [view, setView] = useState<LocationView>("grid");
 
-    const { data: warehouses, isLoading } = useGetWarehousesQuery(dashboardId);
+    const { data: warehouses, isLoading } = useGetWarehousesQuery(orgId);
 
     return (
         <div className="w-full mx-auto h-full">
