@@ -13,7 +13,7 @@ import {
 } from '@nestjs/common';
 import { FeaturesService } from './features.service';
 import { CreateFeatureDto } from './dto/create-feature.dto';
-import { Roles,AllowAnonymous } from '@thallesp/nestjs-better-auth';
+import { Roles, AllowAnonymous } from '@thallesp/nestjs-better-auth';
 
 @Controller('features')
 export class FeaturesController {

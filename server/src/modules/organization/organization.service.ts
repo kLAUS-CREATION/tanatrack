@@ -1,6 +1,16 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+  Logger,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateOrganizationDto, UpgradePlanDto, UpdateOrganizationDto } from './dto/organization.dto';
+import {
+  CreateOrganizationDto,
+  UpgradePlanDto,
+  UpdateOrganizationDto,
+} from './dto/organization.dto';
 import {
   OrganizationRole,
   SubscriptionStatus,
@@ -12,14 +22,19 @@ import { MembershipService } from '../core/membership/membership.service';
 
 @Injectable()
 export class OrganizationService {
-  constructor(private prisma: PrismaService, private perm: MembershipService) {}
+  constructor(
+    private prisma: PrismaService,
+    private perm: MembershipService,
+  ) {}
   private readonly logger = new Logger(OrganizationService.name);
 
   // Creating A New Organization
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   async create(userId: string, dto: CreateOrganizationDto) {
     // Check if the Plan is Exist
-    const plan = await this.prisma.plan.findUnique({ where: { id: dto.planId } });
+    const plan = await this.prisma.plan.findUnique({
+      where: { id: dto.planId },
+    });
     if (!plan) throw new NotFoundException('Selected plan not found');
 
     // Only One Free Organization Per User
@@ -29,11 +44,13 @@ export class OrganizationService {
         where: {
           userId: userId,
           roleType: OrganizationRole.OWNER,
-          organization: { subscription: { plan: { type: PlanType.FREE } } }
-        }
+          organization: { subscription: { plan: { type: PlanType.FREE } } },
+        },
       });
       if (existingFreeOrg) {
-        throw new ForbiddenException('Limit reached: You already own a Free organization.');
+        throw new ForbiddenException(
+          'Limit reached: You already own a Free organization.',
+        );
       }
     }
 
@@ -42,11 +59,16 @@ export class OrganizationService {
       where: {
         userId: userId,
         roleType: OrganizationRole.OWNER,
-        organization: { subscription: { plan: { type: { not: PlanType.FREE } } } }
-      }
-    })
+        organization: {
+          subscription: { plan: { type: { not: PlanType.FREE } } },
+        },
+      },
+    });
 
-    const isEligibleForTrial = !isTheUserHasNonFreeOrg && plan.type !== PlanType.FREE && (plan.trialDays ?? 0) > 0;
+    const isEligibleForTrial =
+      !isTheUserHasNonFreeOrg &&
+      plan.type !== PlanType.FREE &&
+      (plan.trialDays ?? 0) > 0;
 
     // 4. TRANSACTION
     return this.prisma.$transaction(async (tx) => {
@@ -60,24 +82,23 @@ export class OrganizationService {
         // this should be forever
         periodEnd.setFullYear(9999);
       } else if (isEligibleForTrial) {
-          trialEndsAt = new Date(now);
-          trialEndsAt.setDate(trialEndsAt.getDate() + (plan.trialDays ?? 0));
-          periodEnd.setTime(trialEndsAt.getTime());
-          status = SubscriptionStatus.ONFREETRIAL;
+        trialEndsAt = new Date(now);
+        trialEndsAt.setDate(trialEndsAt.getDate() + (plan.trialDays ?? 0));
+        periodEnd.setTime(trialEndsAt.getTime());
+        status = SubscriptionStatus.ONFREETRIAL;
       } else {
-          status = SubscriptionStatus.PENDING;
-          // In here there will be real payment thing in here
+        status = SubscriptionStatus.PENDING;
+        // In here there will be real payment thing in here
 
-          // after some operation in here
-          status = SubscriptionStatus.ACTIVE;
-          trialEndsAt = null;
-          if (dto.billingInterval === 'YEARLY') {
-            periodEnd.setFullYear(now.getFullYear() + 1);
-          } else if (dto.billingInterval === 'MONTHLY') {
-            periodEnd.setMonth(now.getMonth() + 1);
-          }
+        // after some operation in here
+        status = SubscriptionStatus.ACTIVE;
+        trialEndsAt = null;
+        if (dto.billingInterval === 'YEARLY') {
+          periodEnd.setFullYear(now.getFullYear() + 1);
+        } else if (dto.billingInterval === 'MONTHLY') {
+          periodEnd.setMonth(now.getMonth() + 1);
+        }
       }
-
 
       const organization = await tx.organization.create({
         data: { name: dto.name },
@@ -103,7 +124,8 @@ export class OrganizationService {
         },
       });
 
-      const amount = dto.billingInterval === 'YEARLY' ? plan.yearlyPrice : plan.monthlyPrice;
+      const amount =
+        dto.billingInterval === 'YEARLY' ? plan.yearlyPrice : plan.monthlyPrice;
 
       await tx.invoice.create({
         data: {
@@ -120,20 +142,22 @@ export class OrganizationService {
   }
 
   // Upgrading A Plan
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   async upgrade(orgId: string, userId: string, dto: UpgradePlanDto) {
     const currentSub = await this.prisma.subscription.findUnique({
       where: { organizationId: orgId },
-      include: { plan: true }
+      include: { plan: true },
     });
     if (!currentSub) throw new NotFoundException('Subscription not found');
 
-    const newPlan = await this.prisma.plan.findUnique({ where: { id: dto.newPlanId } });
+    const newPlan = await this.prisma.plan.findUnique({
+      where: { id: dto.newPlanId },
+    });
     if (!newPlan) throw new NotFoundException('New plan not found');
 
     // 1. Verify Ownership
     const membership = await this.prisma.membership.findUnique({
-      where: { userId_organizationId: { userId, organizationId: orgId } }
+      where: { userId_organizationId: { userId, organizationId: orgId } },
     });
     if (membership?.roleType !== OrganizationRole.OWNER) {
       throw new ForbiddenException('Only owners can upgrade plans');
@@ -141,7 +165,9 @@ export class OrganizationService {
 
     // 2. Upgrade-Only Rule (Check Monthly Price)
     if ((newPlan.monthlyPrice || 0) < (currentSub.plan.monthlyPrice || 0)) {
-      throw new BadRequestException('Downgrading is not allowed via this portal.');
+      throw new BadRequestException(
+        'Downgrading is not allowed via this portal.',
+      );
     }
 
     return this.prisma.subscription.update({
@@ -150,13 +176,13 @@ export class OrganizationService {
         planId: newPlan.id,
         // When upgrading, we usually reset trial to null as they've made a choice
         trialEndsAt: null,
-        status: SubscriptionStatus.PENDING // Await payment for new plan
-      }
+        status: SubscriptionStatus.PENDING, // Await payment for new plan
+      },
     });
   }
 
   // Handle Trial Expiration
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   async handleTrialExpiration() {
     const now = new Date();
 
@@ -195,11 +221,10 @@ export class OrganizationService {
     }
 
     return expiredTrials.length;
-
   }
 
   // Handle Subscription Expiration
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   async handleSubscriptionExpiration() {
     const now = new Date();
 
@@ -216,7 +241,9 @@ export class OrganizationService {
       await this.prisma.$transaction(async (tx) => {
         // Generate invoice for next period
         const amount =
-          sub.billingInterval === BillingInterval.YEARLY ? sub.plan.yearlyPrice : sub.plan.monthlyPrice;
+          sub.billingInterval === BillingInterval.YEARLY
+            ? sub.plan.yearlyPrice
+            : sub.plan.monthlyPrice;
 
         await tx.invoice.create({
           data: {
@@ -224,7 +251,8 @@ export class OrganizationService {
             subscriptionId: sub.id,
             amount: amount || 0,
             currency: sub.plan.currency,
-            status: (amount || 0) === 0 ? InvoiceStatus.PAID : InvoiceStatus.OPEN,
+            status:
+              (amount || 0) === 0 ? InvoiceStatus.PAID : InvoiceStatus.OPEN,
           },
         });
 
@@ -255,7 +283,6 @@ export class OrganizationService {
     return expiredSubs.length;
   }
 
-
   // Handle Finding All the Organizations For the User
   async findAllForUser(userId: string) {
     const organizations = await this.prisma.organization.findMany({
@@ -281,10 +308,12 @@ export class OrganizationService {
       where: { id: orgId, memberships: { some: { userId } } },
       include: {
         subscription: {
-          include: { plan: { include: { planFeatures: { include: { feature: true } } } } }
+          include: {
+            plan: { include: { planFeatures: { include: { feature: true } } } },
+          },
         },
-        memberships: { include: { user: true } }
-      }
+        memberships: { include: { user: true } },
+      },
     });
     if (!org) throw new NotFoundException('Organization not found');
     return org;
@@ -296,7 +325,9 @@ export class OrganizationService {
       where: { userId_organizationId: { userId, organizationId: orgId } },
     });
     if (membership?.roleType !== OrganizationRole.OWNER) {
-      throw new ForbiddenException('Only the owner can edit organization settings');
+      throw new ForbiddenException(
+        'Only the owner can edit organization settings',
+      );
     }
 
     return this.prisma.organization.update({
@@ -309,19 +340,19 @@ export class OrganizationService {
     });
   }
 
-    // Getting all the users under the Organizations
-    async getOrgMembers(orgId: string, userId: string) {
-        await this.perm.verifyAccess(userId, orgId, 'ADMINISTRATION_ACCESS');
+  // Getting all the users under the Organizations
+  async getOrgMembers(orgId: string, userId: string) {
+    await this.perm.verifyAccess(userId, orgId, 'ADMINISTRATION_ACCESS');
 
-        const members =  await this.prisma.membership.findMany({
-            where: { organizationId: orgId },
-            include: { role: { include: { permissions: true } } }
-        });
+    const members = await this.prisma.membership.findMany({
+      where: { organizationId: orgId },
+      include: { role: { include: { permissions: true } } },
+    });
 
-        if (!members) {
-            throw new Error("Cant get the members");
-        }
-
-        return members;
+    if (!members) {
+      throw new Error('Cant get the members');
     }
+
+    return members;
+  }
 }

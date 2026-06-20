@@ -1,6 +1,7 @@
 import {
   ArrayMinSize,
   IsArray,
+  IsDateString,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -24,6 +25,12 @@ export class PurchaseItemDto {
   @Min(0)
   @IsOptional()
   unitCost?: number;
+
+  // Expiry date (ISO) for this received lot. Required when the product is
+  // perishable (enforced in the service); ignored for non-perishables.
+  @IsDateString()
+  @IsOptional()
+  expiryDate?: string;
 }
 
 // Purchases receive stock into the org-wide receiving pool (no location); it is

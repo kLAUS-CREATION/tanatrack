@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from 'src/modules/prisma/prisma.service';
 import { CreateWarehouseDto, UpdateWarehouseDto } from './dto/warehouse.dto';
 import { MembershipService } from '../membership/membership.service';
@@ -8,7 +13,7 @@ import { PERMISSIONS } from 'src/constants/permissions.constant';
 export class WarehouseService {
   constructor(
     private prisma: PrismaService,
-    private membershipService: MembershipService
+    private membershipService: MembershipService,
   ) {}
 
   private async validateLimit(orgId: string) {
@@ -16,20 +21,29 @@ export class WarehouseService {
       where: { id: orgId },
       include: {
         subscription: {
-          include: { plan: { include: { planFeatures: { include: { feature: true } } } } }
+          include: {
+            plan: { include: { planFeatures: { include: { feature: true } } } },
+          },
         },
-        _count: { select: { warehouses: true } }
-      }
+        _count: { select: { warehouses: true } },
+      },
     });
 
     if (!org) throw new NotFoundException('Organization not found');
 
-    const limitFeature = org.subscription?.plan.planFeatures.find(f => f.feature.key === 'max_warehouses');
-    if (!limitFeature) throw new BadRequestException('Warehouse limit not configured for this plan');
+    const limitFeature = org.subscription?.plan.planFeatures.find(
+      (f) => f.feature.key === 'max_warehouses',
+    );
+    if (!limitFeature)
+      throw new BadRequestException(
+        'Warehouse limit not configured for this plan',
+      );
 
     const allowed = parseInt(limitFeature.value);
     if (org._count.warehouses >= allowed) {
-      throw new BadRequestException(`Limit reached. Your plan allows only ${allowed} warehouses.`);
+      throw new BadRequestException(
+        `Limit reached. Your plan allows only ${allowed} warehouses.`,
+      );
     }
   }
 
@@ -42,7 +56,9 @@ export class WarehouseService {
       PERMISSIONS.WAREHOUSING_LIST_ALL,
     );
     if (canListAll) {
-      return this.prisma.warehouse.findMany({ where: { organizationId: orgId } });
+      return this.prisma.warehouse.findMany({
+        where: { organizationId: orgId, isActive: true },
+      });
     }
 
     // A member with only a LOCAL role sees just the warehouses they're assigned to.
@@ -57,32 +73,59 @@ export class WarehouseService {
     return this.prisma.warehouse.findMany({
       where: {
         organizationId: orgId,
+        isActive: true,
         memberships: { some: { membershipId: membership.id } },
       },
     });
   }
 
   async create(orgId: string, userId: string, dto: CreateWarehouseDto) {
-    await this.membershipService.verifyAccess(userId, orgId, PERMISSIONS.ADMINISTRATION_ACCESS);
+    await this.membershipService.verifyAccess(
+      userId,
+      orgId,
+      PERMISSIONS.ADMINISTRATION_ACCESS,
+    );
     await this.validateLimit(orgId);
 
     return this.prisma.warehouse.create({
-      data: { ...dto, organizationId: orgId }
+      data: { ...dto, organizationId: orgId },
     });
   }
 
-  async update(orgId: string, userId: string, warehouseId: string, dto: UpdateWarehouseDto) {
+  async update(
+    orgId: string,
+    userId: string,
+    warehouseId: string,
+    dto: UpdateWarehouseDto,
+  ) {
     // Warehouse management is centralized under the Administration permission.
-    await this.membershipService.verifyAccess(userId, orgId, PERMISSIONS.ADMINISTRATION_ACCESS);
+    await this.membershipService.verifyAccess(
+      userId,
+      orgId,
+      PERMISSIONS.ADMINISTRATION_ACCESS,
+    );
 
-    const warehouse = await this.prisma.warehouse.findFirst({ where: { id: warehouseId, organizationId: orgId } });
+    const warehouse = await this.prisma.warehouse.findFirst({
+      where: { id: warehouseId, organizationId: orgId },
+    });
     if (!warehouse) throw new NotFoundException('Warehouse not found');
 
-    return this.prisma.warehouse.update({ where: { id: warehouseId }, data: dto });
+    return this.prisma.warehouse.update({
+      where: { id: warehouseId },
+      data: dto,
+    });
   }
 
   async delete(orgId: string, userId: string, warehouseId: string) {
-    await this.membershipService.verifyAccess(userId, orgId, PERMISSIONS.ADMINISTRATION_ACCESS);
-    return this.prisma.warehouse.deleteMany({ where: { id: warehouseId, organizationId: orgId } });
+    await this.membershipService.verifyAccess(
+      userId,
+      orgId,
+      PERMISSIONS.ADMINISTRATION_ACCESS,
+    );
+    // Soft delete: preserve stock levels and ledger references.
+    return this.prisma.warehouse.updateMany({
+      where: { id: warehouseId, organizationId: orgId },
+      data: { isActive: false },
+    });
   }
 }

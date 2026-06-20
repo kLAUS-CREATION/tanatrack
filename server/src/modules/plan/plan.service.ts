@@ -32,13 +32,16 @@ export class PlanService {
       data: {
         ...planData,
         sortOrder: planData.sortOrder ?? 0,
-        planFeatures: features && features.length > 0 ? {
-          create: features.map((f) => ({
-            featureId: f.featureId,
-            value: f.value,
-            overrideDescription: f.overrideDescription,
-          })),
-        } : undefined,
+        planFeatures:
+          features && features.length > 0
+            ? {
+                create: features.map((f) => ({
+                  featureId: f.featureId,
+                  value: f.value,
+                  overrideDescription: f.overrideDescription,
+                })),
+              }
+            : undefined,
       },
       include: this.planInclude, // Include full details in the response
     });
@@ -64,7 +67,8 @@ export class PlanService {
       where: { id },
       data: {
         ...planData,
-        sortOrder: planData.sortOrder !== undefined ? planData.sortOrder : undefined,
+        sortOrder:
+          planData.sortOrder !== undefined ? planData.sortOrder : undefined,
       },
       include: this.planInclude,
     });

@@ -1,6 +1,12 @@
 import { MembershipService } from './membership.service';
 import {
-  Controller, Post, Get, Put, Body, Param, Delete,
+  Controller,
+  Post,
+  Get,
+  Put,
+  Body,
+  Param,
+  Delete,
 } from '@nestjs/common';
 import { Session } from '@thallesp/nestjs-better-auth';
 import type { UserSession } from '@thallesp/nestjs-better-auth';
@@ -48,6 +54,12 @@ export class MembershipController {
     return this.orgService.getMembers(id, session.user.id);
   }
 
+  // Read-only employee directory — visible to any member of the organization.
+  @Get(':id/directory')
+  async getDirectory(@Param('id') id: string, @Session() session: UserSession) {
+    return this.orgService.getDirectory(id, session.user.id);
+  }
+
   // The current user's role type + granted permission slugs for this org.
   @Get(':id/me')
   async getMyAccess(@Param('id') id: string, @Session() session: UserSession) {
@@ -56,7 +68,10 @@ export class MembershipController {
 
   // Branches & warehouses an admin can attach to a location-scoped invite.
   @Get(':id/locations')
-  async getAssignableLocations(@Param('id') id: string, @Session() session: UserSession) {
+  async getAssignableLocations(
+    @Param('id') id: string,
+    @Session() session: UserSession,
+  ) {
     return this.orgService.getAssignableLocations(id, session.user.id);
   }
 
@@ -67,7 +82,12 @@ export class MembershipController {
     @Session() session: UserSession,
     @Body() dto: SetMemberRoleDto,
   ) {
-    return this.orgService.setMemberRole(id, session.user.id, membershipId, dto);
+    return this.orgService.setMemberRole(
+      id,
+      session.user.id,
+      membershipId,
+      dto,
+    );
   }
 
   // --- LOCATION (SCOPED) ROLE ASSIGNMENT ---
@@ -79,7 +99,13 @@ export class MembershipController {
     @Session() session: UserSession,
     @Body() dto: AssignLocationRoleDto,
   ) {
-    return this.orgService.assignBranchRole(id, session.user.id, membershipId, branchId, dto);
+    return this.orgService.assignBranchRole(
+      id,
+      session.user.id,
+      membershipId,
+      branchId,
+      dto,
+    );
   }
 
   @Delete(':id/members/:membershipId/branches/:branchId')
@@ -89,7 +115,12 @@ export class MembershipController {
     @Param('branchId') branchId: string,
     @Session() session: UserSession,
   ) {
-    return this.orgService.removeBranchRole(id, session.user.id, membershipId, branchId);
+    return this.orgService.removeBranchRole(
+      id,
+      session.user.id,
+      membershipId,
+      branchId,
+    );
   }
 
   @Put(':id/members/:membershipId/warehouses/:warehouseId')
@@ -100,7 +131,13 @@ export class MembershipController {
     @Session() session: UserSession,
     @Body() dto: AssignLocationRoleDto,
   ) {
-    return this.orgService.assignWarehouseRole(id, session.user.id, membershipId, warehouseId, dto);
+    return this.orgService.assignWarehouseRole(
+      id,
+      session.user.id,
+      membershipId,
+      warehouseId,
+      dto,
+    );
   }
 
   @Delete(':id/members/:membershipId/warehouses/:warehouseId')
@@ -110,7 +147,12 @@ export class MembershipController {
     @Param('warehouseId') warehouseId: string,
     @Session() session: UserSession,
   ) {
-    return this.orgService.removeWarehouseRole(id, session.user.id, membershipId, warehouseId);
+    return this.orgService.removeWarehouseRole(
+      id,
+      session.user.id,
+      membershipId,
+      warehouseId,
+    );
   }
 
   // --- ROLES ---

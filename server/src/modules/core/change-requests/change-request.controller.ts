@@ -1,11 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  Post,
-  Query,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { Session } from '@thallesp/nestjs-better-auth';
 import type { UserSession } from '@thallesp/nestjs-better-auth';
 import { ChangeStatus } from '@prisma/client';
@@ -52,6 +45,11 @@ export class ChangeRequestController {
     @Session() session: UserSession,
     @Body() dto: RejectChangeDto,
   ) {
-    return this.changeRequests.reject(id, session.user.id, requestId, dto.reason);
+    return this.changeRequests.reject(
+      id,
+      session.user.id,
+      requestId,
+      dto.reason,
+    );
   }
 }

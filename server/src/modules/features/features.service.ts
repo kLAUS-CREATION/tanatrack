@@ -1,11 +1,7 @@
 import { Injectable, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateFeatureDto } from './dto/create-feature.dto';
-import {
-  Feature,
-  FeatureType,
-  FeatureCategory,
-} from '@prisma/client';
+import { Feature } from '@prisma/client';
 
 @Injectable()
 export class FeaturesService {
@@ -27,8 +23,8 @@ export class FeaturesService {
         key: createFeatureDto.key,
         name: createFeatureDto.name,
         description: createFeatureDto.description,
-        type: createFeatureDto.type as FeatureType,
-        category: createFeatureDto.category as FeatureCategory | undefined,
+        type: createFeatureDto.type,
+        category: createFeatureDto.category,
       },
     });
   }
@@ -64,7 +60,7 @@ export class FeaturesService {
     const feature = this.prisma.feature.findUnique({ where: { id } });
 
     if (!feature) {
-        throw new Error('Feature not found');
+      throw new Error('Feature not found');
     }
     return this.prisma.feature.delete({ where: { id } });
   }

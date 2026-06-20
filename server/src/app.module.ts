@@ -86,4 +86,4 @@ import { WarehouseModule } from './modules/core/warehouse/warehouse.module';
   controllers: [AppController, FeaturesController, MembershipController],
   providers: [AppService, FeaturesService],
 })
-export class AppModule { }
+export class AppModule {}

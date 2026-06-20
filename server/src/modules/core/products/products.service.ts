@@ -19,6 +19,18 @@ import {
   UpdateProductDto,
   UpdateVariantDto,
 } from './dto/product.dto';
+import { ProductQueryDto } from './dto/product-query.dto';
+import {
+  optionalActiveWhere,
+  resolvePaging,
+  type Paginated,
+} from 'src/common/dto/pagination.dto';
+
+// Shared include for product list rows (catalog + categorization).
+const PRODUCT_LIST_INCLUDE = {
+  variants: true,
+  category: true,
+} satisfies Prisma.ProductInclude;
 
 @Injectable()
 export class ProductsService {
@@ -45,6 +57,70 @@ export class ProductsService {
       include: { variants: true, category: true },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  // Server-paginated + filtered list for the products page. The plain findAll
+  // above stays for the sale/purchase variant pickers (need the full array).
+  async findAllPaged(
+    orgId: string,
+    userId: string,
+    query: ProductQueryDto,
+  ): Promise<
+    Paginated<
+      Prisma.ProductGetPayload<{ include: typeof PRODUCT_LIST_INCLUDE }>
+    >
+  > {
+    await this.membershipService.verifyAccess(
+      userId,
+      orgId,
+      PERMISSIONS.PRODUCTS_VIEW_ALL,
+    );
+    const { skip, take, page, pageSize } = resolvePaging(query);
+
+    const search = query.search?.trim();
+    const categoryWhere: Prisma.ProductWhereInput =
+      query.categoryId === 'none'
+        ? { categoryId: null }
+        : query.categoryId
+          ? { categoryId: query.categoryId }
+          : {};
+
+    const where: Prisma.ProductWhereInput = {
+      organizationId: orgId,
+      ...optionalActiveWhere(query.status),
+      ...categoryWhere,
+      ...(search
+        ? {
+            OR: [
+              { name: { contains: search, mode: 'insensitive' } },
+              { description: { contains: search, mode: 'insensitive' } },
+              { category: { name: { contains: search, mode: 'insensitive' } } },
+              {
+                variants: {
+                  some: {
+                    OR: [
+                      { name: { contains: search, mode: 'insensitive' } },
+                      { sku: { contains: search, mode: 'insensitive' } },
+                    ],
+                  },
+                },
+              },
+            ],
+          }
+        : {}),
+    };
+
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.product.findMany({
+        where,
+        include: PRODUCT_LIST_INCLUDE,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+      }),
+      this.prisma.product.count({ where }),
+    ]);
+    return { data, total, page, pageSize };
   }
 
   async findOne(orgId: string, userId: string, productId: string) {
@@ -77,8 +153,37 @@ export class ProductsService {
   //  PRODUCT MUTATIONS (maker–checker via ChangeRequestService)
   // ============================================================
 
+  // Lenient plan-limit guard: enforces the `max_products` feature only when the
+  // org's plan actually configures it; absent feature → unlimited (no throw).
+  private async assertWithinProductLimit(orgId: string) {
+    const org = await this.prisma.organization.findUnique({
+      where: { id: orgId },
+      include: {
+        subscription: {
+          include: {
+            plan: { include: { planFeatures: { include: { feature: true } } } },
+          },
+        },
+        _count: { select: { products: true } },
+      },
+    });
+    if (!org) throw new NotFoundException('Organization not found');
+
+    const feature = org.subscription?.plan.planFeatures.find(
+      (f) => f.feature.key === 'max_products',
+    );
+    if (!feature) return; // not configured for this plan → no limit
+    const allowed = parseInt(feature.value, 10);
+    if (!Number.isNaN(allowed) && org._count.products >= allowed) {
+      throw new BadRequestException(
+        `Limit reached. Your plan allows only ${allowed} products.`,
+      );
+    }
+  }
+
   async create(orgId: string, userId: string, dto: CreateProductDto) {
     await this.assertCanManageProducts(orgId, userId);
+    await this.assertWithinProductLimit(orgId);
     if (dto.categoryId) await this.assertCategoryInOrg(orgId, dto.categoryId);
 
     return this.changeRequests.submit(orgId, userId, {
@@ -238,7 +343,9 @@ export class ProductsService {
         PERMISSIONS.PRODUCTS_MANAGE,
       )) || (await this.changeRequests.isApprover(orgId, userId));
     if (!allowed) {
-      throw new ForbiddenException('Missing required permission: PRODUCTS_MANAGE');
+      throw new ForbiddenException(
+        'Missing required permission: PRODUCTS_MANAGE',
+      );
     }
   }
 

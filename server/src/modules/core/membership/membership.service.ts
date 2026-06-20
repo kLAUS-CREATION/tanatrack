@@ -5,7 +5,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { OrganizationRole, InviteStatus, PermissionScope, RoleKind } from '@prisma/client';
+import {
+  OrganizationRole,
+  InviteStatus,
+  PermissionScope,
+  RoleKind,
+} from '@prisma/client';
 import {
   InviteMemberDto,
   UpdateRoleDto,
@@ -29,7 +34,7 @@ export interface AccessContext {
 export class MembershipService {
   constructor(
     private prisma: PrismaService,
-    private mailService: MailService
+    private mailService: MailService,
   ) {}
 
   /**
@@ -86,7 +91,9 @@ export class MembershipService {
 
     // 2. GLOBAL permissions have no location fallback.
     if (definition.scope === PermissionScope.GLOBAL) {
-      throw new ForbiddenException(`Missing required permission: ${actionSlug}`);
+      throw new ForbiddenException(
+        `Missing required permission: ${actionSlug}`,
+      );
     }
 
     // 3. LOCAL permission — check the scoped role at the targeted location.
@@ -120,7 +127,12 @@ export class MembershipService {
 
   /** True if a role (with included permissions) grants the slug. */
   private roleGrants(
-    role: { permissions: { allowed: boolean; permissionDefinition: { slug: string } }[] } | null,
+    role: {
+      permissions: {
+        allowed: boolean;
+        permissionDefinition: { slug: string };
+      }[];
+    } | null,
     slug: string,
   ): boolean {
     return !!role?.permissions.some(
@@ -138,7 +150,9 @@ export class MembershipService {
     if (!branchId && !warehouseId) return false;
 
     const include = {
-      role: { include: { permissions: { include: { permissionDefinition: true } } } },
+      role: {
+        include: { permissions: { include: { permissionDefinition: true } } },
+      },
     };
 
     if (branchId) {
@@ -171,7 +185,9 @@ export class MembershipService {
     const membership = await this.prisma.membership.findUnique({
       where: { userId_organizationId: { userId, organizationId: orgId } },
       include: {
-        role: { include: { permissions: { include: { permissionDefinition: true } } } },
+        role: {
+          include: { permissions: { include: { permissionDefinition: true } } },
+        },
       },
     });
 
@@ -221,9 +237,9 @@ export class MembershipService {
     return this.prisma.role.findMany({
       where: { organizationId: orgId },
       include: {
-        _count: { select: { memberships: true } }
+        _count: { select: { memberships: true } },
       },
-      orderBy: { name: 'asc' }
+      orderBy: { name: 'asc' },
     });
   }
 
@@ -262,7 +278,10 @@ export class MembershipService {
    * matches the role's kind (GLOBAL role → GLOBAL perms, LOCAL role → LOCAL perms).
    * Throws BadRequestException on any mismatch or unknown id.
    */
-  private async assertPermissionsMatchKind(kind: RoleKind, permissionIds?: string[]) {
+  private async assertPermissionsMatchKind(
+    kind: RoleKind,
+    permissionIds?: string[],
+  ) {
     if (!permissionIds?.length) return;
 
     const requiredScope =
@@ -295,23 +314,30 @@ export class MembershipService {
         permissions: {
           select: {
             permissionDefinitionId: true,
-            allowed: true
-          }
-        }
-      }
+            allowed: true,
+          },
+        },
+      },
     });
 
-    if (!role) throw new NotFoundException('Role not found in this organization');
+    if (!role)
+      throw new NotFoundException('Role not found in this organization');
     return role;
   }
 
-  async updateRole(orgId: string, adminId: string, roleId: string, dto: UpdateRoleDto) {
+  async updateRole(
+    orgId: string,
+    adminId: string,
+    roleId: string,
+    dto: UpdateRoleDto,
+  ) {
     await this.verifyAccess(adminId, orgId, 'ADMINISTRATION_ACCESS');
 
     const role = await this.prisma.role.findFirst({
       where: { id: roleId, organizationId: orgId },
     });
-    if (!role) throw new NotFoundException('Role not found in this organization');
+    if (!role)
+      throw new NotFoundException('Role not found in this organization');
 
     // New permission set must still respect the role's immutable kind.
     if (dto.permissionIds) {
@@ -323,7 +349,7 @@ export class MembershipService {
       if (dto.name) {
         await tx.role.update({
           where: { id: roleId },
-          data: { name: dto.name }
+          data: { name: dto.name },
         });
       }
 
@@ -335,11 +361,11 @@ export class MembershipService {
         // Create new relations if any are selected
         if (dto.permissionIds.length > 0) {
           await tx.rolePermission.createMany({
-            data: dto.permissionIds.map(pDefId => ({
+            data: dto.permissionIds.map((pDefId) => ({
               roleId,
               permissionDefinitionId: pDefId,
-              allowed: true
-            }))
+              allowed: true,
+            })),
           });
         }
       }
@@ -356,7 +382,17 @@ export class MembershipService {
    */
   async getMembers(orgId: string, userId: string) {
     await this.verifyAccess(userId, orgId, 'ADMINISTRATION_ACCESS');
+    return this.listMembers(orgId);
+  }
 
+  // Read-only employee directory: any member of the org may view who works here
+  // and where. No management actions are exposed through this path.
+  async getDirectory(orgId: string, userId: string) {
+    await this.verifyAccess(userId, orgId);
+    return this.listMembers(orgId);
+  }
+
+  private async listMembers(orgId: string) {
     const members = await this.prisma.membership.findMany({
       where: { organizationId: orgId },
       include: {
@@ -403,7 +439,12 @@ export class MembershipService {
   }
 
   /** Assign / clear a member's organization-wide custom role. */
-  async setMemberRole(orgId: string, adminId: string, membershipId: string, dto: SetMemberRoleDto) {
+  async setMemberRole(
+    orgId: string,
+    adminId: string,
+    membershipId: string,
+    dto: SetMemberRoleDto,
+  ) {
     await this.verifyAccess(adminId, orgId, 'ADMINISTRATION_ACCESS');
     const membership = await this.getOrgMembership(orgId, membershipId);
 
@@ -420,12 +461,21 @@ export class MembershipService {
   }
 
   /** Grant a member a scoped role at a branch (upsert), or remove their assignment. */
-  async assignBranchRole(orgId: string, adminId: string, membershipId: string, branchId: string, dto: AssignLocationRoleDto) {
+  async assignBranchRole(
+    orgId: string,
+    adminId: string,
+    membershipId: string,
+    branchId: string,
+    dto: AssignLocationRoleDto,
+  ) {
     await this.verifyAccess(adminId, orgId, 'ADMINISTRATION_ACCESS');
     await this.getOrgMembership(orgId, membershipId);
 
-    const branch = await this.prisma.branch.findFirst({ where: { id: branchId, organizationId: orgId } });
-    if (!branch) throw new NotFoundException('Branch not found in this organization');
+    const branch = await this.prisma.branch.findFirst({
+      where: { id: branchId, organizationId: orgId },
+    });
+    if (!branch)
+      throw new NotFoundException('Branch not found in this organization');
 
     await this.assertRoleInOrg(orgId, dto.roleId);
 
@@ -436,21 +486,37 @@ export class MembershipService {
     });
   }
 
-  async removeBranchRole(orgId: string, adminId: string, membershipId: string, branchId: string) {
+  async removeBranchRole(
+    orgId: string,
+    adminId: string,
+    membershipId: string,
+    branchId: string,
+  ) {
     await this.verifyAccess(adminId, orgId, 'ADMINISTRATION_ACCESS');
     await this.getOrgMembership(orgId, membershipId);
 
-    await this.prisma.branchMember.deleteMany({ where: { membershipId, branchId } });
+    await this.prisma.branchMember.deleteMany({
+      where: { membershipId, branchId },
+    });
     return { success: true };
   }
 
   /** Grant a member a scoped role at a warehouse (upsert), or remove their assignment. */
-  async assignWarehouseRole(orgId: string, adminId: string, membershipId: string, warehouseId: string, dto: AssignLocationRoleDto) {
+  async assignWarehouseRole(
+    orgId: string,
+    adminId: string,
+    membershipId: string,
+    warehouseId: string,
+    dto: AssignLocationRoleDto,
+  ) {
     await this.verifyAccess(adminId, orgId, 'ADMINISTRATION_ACCESS');
     await this.getOrgMembership(orgId, membershipId);
 
-    const warehouse = await this.prisma.warehouse.findFirst({ where: { id: warehouseId, organizationId: orgId } });
-    if (!warehouse) throw new NotFoundException('Warehouse not found in this organization');
+    const warehouse = await this.prisma.warehouse.findFirst({
+      where: { id: warehouseId, organizationId: orgId },
+    });
+    if (!warehouse)
+      throw new NotFoundException('Warehouse not found in this organization');
 
     await this.assertRoleInOrg(orgId, dto.roleId);
 
@@ -461,11 +527,18 @@ export class MembershipService {
     });
   }
 
-  async removeWarehouseRole(orgId: string, adminId: string, membershipId: string, warehouseId: string) {
+  async removeWarehouseRole(
+    orgId: string,
+    adminId: string,
+    membershipId: string,
+    warehouseId: string,
+  ) {
     await this.verifyAccess(adminId, orgId, 'ADMINISTRATION_ACCESS');
     await this.getOrgMembership(orgId, membershipId);
 
-    await this.prisma.warehouseMember.deleteMany({ where: { membershipId, warehouseId } });
+    await this.prisma.warehouseMember.deleteMany({
+      where: { membershipId, warehouseId },
+    });
     return { success: true };
   }
 
@@ -474,15 +547,21 @@ export class MembershipService {
     const membership = await this.prisma.membership.findFirst({
       where: { id: membershipId, organizationId: orgId },
     });
-    if (!membership) throw new NotFoundException('Member not found in this organization');
+    if (!membership)
+      throw new NotFoundException('Member not found in this organization');
     return membership;
   }
 
   /** Validate that a roleId (if provided) belongs to the org. */
   private async assertRoleInOrg(orgId: string, roleId?: string | null) {
     if (!roleId) return;
-    const role = await this.prisma.role.findFirst({ where: { id: roleId, organizationId: orgId } });
-    if (!role) throw new BadRequestException('Role does not belong to this organization');
+    const role = await this.prisma.role.findFirst({
+      where: { id: roleId, organizationId: orgId },
+    });
+    if (!role)
+      throw new BadRequestException(
+        'Role does not belong to this organization',
+      );
   }
 
   // --- INVITATION LOGIC ---
@@ -497,53 +576,59 @@ export class MembershipService {
           include: {
             plan: {
               include: {
-                planFeatures: { include: { feature: true } }
-              }
-            }
-          }
+                planFeatures: { include: { feature: true } },
+              },
+            },
+          },
         },
-        _count: { select: { memberships: true } }
-      }
+        _count: { select: { memberships: true } },
+      },
     });
 
     if (!org) throw new NotFoundException('Organization not found');
 
     const limitFeature = org.subscription?.plan.planFeatures.find(
-      f => f.feature.key === 'max_users'
+      (f) => f.feature.key === 'max_users',
     );
 
     if (!limitFeature) {
-      throw new BadRequestException('User limit configuration missing for this plan');
+      throw new BadRequestException(
+        'User limit configuration missing for this plan',
+      );
     }
 
     const currentMemberCount = org._count.memberships;
     const allowedMemberCount = parseInt(limitFeature.value);
 
     if (currentMemberCount >= allowedMemberCount) {
-      throw new BadRequestException(`Plan limit reached. Maximum allowed users: ${allowedMemberCount}`);
+      throw new BadRequestException(
+        `Plan limit reached. Maximum allowed users: ${allowedMemberCount}`,
+      );
     }
 
     const existingMember = await this.prisma.membership.findFirst({
-        where: {
-            organizationId: orgId,
-            user: { email: dto.email }
-        }
+      where: {
+        organizationId: orgId,
+        user: { email: dto.email },
+      },
     });
 
     if (existingMember) {
-        throw new BadRequestException('User already belongs to this organization');
+      throw new BadRequestException(
+        'User already belongs to this organization',
+      );
     }
 
     const existingInvite = await this.prisma.invite.findFirst({
-        where: {
-            email: dto.email,
-            organizationId: orgId,
-            status: InviteStatus.PENDING
-        }
+      where: {
+        email: dto.email,
+        organizationId: orgId,
+        status: InviteStatus.PENDING,
+      },
     });
 
     if (existingInvite) {
-        throw new BadRequestException('User already has a pending invite');
+      throw new BadRequestException('User already has a pending invite');
     }
 
     // Resolve the selected role's kind. A LOCAL role must be attached to at least one
@@ -554,15 +639,22 @@ export class MembershipService {
         where: { id: dto.roleId, organizationId: orgId },
       });
       if (!role) {
-        throw new BadRequestException('Role does not belong to this organization');
+        throw new BadRequestException(
+          'Role does not belong to this organization',
+        );
       }
       if (role.kind === RoleKind.LOCAL) {
-        locationCreate = await this.validateInviteLocations(orgId, dto.locations);
+        locationCreate = await this.validateInviteLocations(
+          orgId,
+          dto.locations,
+        );
       }
     }
 
     // 2. Generate Invite
-    const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    const token =
+      Math.random().toString(36).substring(2, 15) +
+      Math.random().toString(36).substring(2, 15);
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
 
@@ -575,9 +667,11 @@ export class MembershipService {
         token,
         expiresAt,
         status: InviteStatus.PENDING,
-        locations: locationCreate.length ? { create: locationCreate } : undefined,
+        locations: locationCreate.length
+          ? { create: locationCreate }
+          : undefined,
       },
-      include: { organization: true }
+      include: { organization: true },
     });
 
     // 3. Dispatch Email
@@ -587,7 +681,7 @@ export class MembershipService {
       await this.mailService.sendEmail(
         dto.email,
         `Join ${invite.organization.name} on our platform`,
-        `<h1>Invitation</h1><p>You have been invited to join <strong>${invite.organization.name}</strong>.</p><p><a href="${inviteUrl}">Click here to accept the invitation</a></p>`
+        `<h1>Invitation</h1><p>You have been invited to join <strong>${invite.organization.name}</strong>.</p><p><a href="${inviteUrl}">Click here to accept the invitation</a></p>`,
       );
     } catch (e) {
       // In production, you might want to log this but not fail the transaction
@@ -635,7 +729,9 @@ export class MembershipService {
           where: { id: loc.warehouseId, organizationId: orgId },
         });
         if (!warehouse) {
-          throw new NotFoundException('Warehouse not found in this organization');
+          throw new NotFoundException(
+            'Warehouse not found in this organization',
+          );
         }
         result.push({ warehouseId: loc.warehouseId });
       }
@@ -699,11 +795,19 @@ export class MembershipService {
         for (const loc of invite.locations) {
           if (loc.branchId) {
             await tx.branchMember.create({
-              data: { membershipId: membership.id, branchId: loc.branchId, roleId: invite.roleId },
+              data: {
+                membershipId: membership.id,
+                branchId: loc.branchId,
+                roleId: invite.roleId,
+              },
             });
           } else if (loc.warehouseId) {
             await tx.warehouseMember.create({
-              data: { membershipId: membership.id, warehouseId: loc.warehouseId, roleId: invite.roleId },
+              data: {
+                membershipId: membership.id,
+                warehouseId: loc.warehouseId,
+                roleId: invite.roleId,
+              },
             });
           }
         }
@@ -724,13 +828,13 @@ export class MembershipService {
       where: {
         email,
         status: InviteStatus.PENDING,
-        expiresAt: { gt: new Date() }
+        expiresAt: { gt: new Date() },
       },
       include: {
         organization: {
-          select: { id: true, name: true, logoUrl: true }
-        }
-      }
+          select: { id: true, name: true, logoUrl: true },
+        },
+      },
     });
   }
 
@@ -738,17 +842,19 @@ export class MembershipService {
 
   async leaveOrganization(userId: string, orgId: string) {
     const member = await this.prisma.membership.findUnique({
-      where: { userId_organizationId: { userId, organizationId: orgId } }
+      where: { userId_organizationId: { userId, organizationId: orgId } },
     });
 
     if (!member) throw new NotFoundException('Membership records not found');
 
     if (member.roleType === OrganizationRole.OWNER) {
-      throw new BadRequestException('Cannot leave an organization with no owners');
+      throw new BadRequestException(
+        'Cannot leave an organization with no owners',
+      );
     }
 
     return this.prisma.membership.delete({
-      where: { id: member.id }
+      where: { id: member.id },
     });
   }
 }

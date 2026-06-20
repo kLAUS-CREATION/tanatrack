@@ -48,9 +48,10 @@ describe('ChangeRequestService.approve (race safety)', () => {
       changeRequest: {
         findFirst: jest.fn().mockResolvedValue({ ...PENDING_REQUEST }),
         updateMany: jest.fn(),
-        update: jest
-          .fn()
-          .mockResolvedValue({ ...PENDING_REQUEST, status: ChangeStatus.APPROVED }),
+        update: jest.fn().mockResolvedValue({
+          ...PENDING_REQUEST,
+          status: ChangeStatus.APPROVED,
+        }),
       },
       supplier: { create: jest.fn().mockResolvedValue({ id: 'sup-1' }) },
     };
@@ -84,9 +85,9 @@ describe('ChangeRequestService.approve (race safety)', () => {
     // The guarded claim flips nothing → this caller lost the race.
     prisma.changeRequest.updateMany.mockResolvedValue({ count: 0 });
 
-    await expect(service.approve('org-1', 'admin-2', 'req-1')).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    await expect(
+      service.approve('org-1', 'admin-2', 'req-1'),
+    ).rejects.toBeInstanceOf(BadRequestException);
     expect(prisma.supplier.create).not.toHaveBeenCalled();
   });
 
@@ -110,7 +111,9 @@ describe('ChangeRequestService.approve (race safety)', () => {
     prisma.changeRequest.updateMany.mockResolvedValue({ count: 1 });
     prisma.supplier.create.mockRejectedValueOnce(new Error('db down'));
 
-    await expect(service.approve('org-1', 'admin-1', 'req-1')).rejects.toThrow('db down');
+    await expect(service.approve('org-1', 'admin-1', 'req-1')).rejects.toThrow(
+      'db down',
+    );
 
     // The catch block must reset the row so it isn't stuck APPROVED-but-unapplied.
     expect(prisma.changeRequest.update).toHaveBeenCalledWith({

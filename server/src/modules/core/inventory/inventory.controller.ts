@@ -1,13 +1,8 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Controller, Get, Param, Query } from '@nestjs/common';
 import { Session } from '@thallesp/nestjs-better-auth';
 import type { UserSession } from '@thallesp/nestjs-better-auth';
 import { InventoryService } from './inventory.service';
-import {
-  AdjustStockDto,
-  LocationStockQueryDto,
-  PurchaseInDto,
-  TransferStockDto,
-} from './dto/inventory.dto';
+import { LocationStockQueryDto } from './dto/inventory.dto';
 
 @Controller('org/:id/inventory')
 export class InventoryController {
@@ -27,6 +22,11 @@ export class InventoryController {
     return this.inventoryService.locationStock(id, session.user.id, query);
   }
 
+  @Get('low-stock')
+  lowStock(@Param('id') id: string, @Session() session: UserSession) {
+    return this.inventoryService.lowStock(id, session.user.id);
+  }
+
   @Get('movements')
   movements(
     @Param('id') id: string,
@@ -36,30 +36,9 @@ export class InventoryController {
     return this.inventoryService.movements(id, session.user.id, variantId);
   }
 
-  @Post('purchase-in')
-  purchaseIn(
-    @Param('id') id: string,
-    @Session() session: UserSession,
-    @Body() dto: PurchaseInDto,
-  ) {
-    return this.inventoryService.purchaseIn(id, session.user.id, dto);
-  }
-
-  @Post('adjust')
-  adjust(
-    @Param('id') id: string,
-    @Session() session: UserSession,
-    @Body() dto: AdjustStockDto,
-  ) {
-    return this.inventoryService.adjustStock(id, session.user.id, dto);
-  }
-
-  @Post('transfer')
-  transfer(
-    @Param('id') id: string,
-    @Session() session: UserSession,
-    @Body() dto: TransferStockDto,
-  ) {
-    return this.inventoryService.transferStock(id, session.user.id, dto);
+  // Dated expiry batches for perishable stock (drives the Expiry view).
+  @Get('batches')
+  batches(@Param('id') id: string, @Session() session: UserSession) {
+    return this.inventoryService.batches(id, session.user.id);
   }
 }

@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Put, Delete, Body, Param } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+} from '@nestjs/common';
 import { Session } from '@thallesp/nestjs-better-auth';
 import type { UserSession } from '@thallesp/nestjs-better-auth';
 import { WarehouseService } from './warehouse.service';
@@ -14,7 +22,11 @@ export class WarehouseController {
   }
 
   @Post()
-  async create(@Param('id') id: string, @Session() session: UserSession, @Body() dto: CreateWarehouseDto) {
+  async create(
+    @Param('id') id: string,
+    @Session() session: UserSession,
+    @Body() dto: CreateWarehouseDto,
+  ) {
     return this.warehouseService.create(id, session.user.id, dto);
   }
 
@@ -23,7 +35,7 @@ export class WarehouseController {
     @Param('id') id: string,
     @Param('warehouseId') warehouseId: string,
     @Session() session: UserSession,
-    @Body() dto: UpdateWarehouseDto
+    @Body() dto: UpdateWarehouseDto,
   ) {
     return this.warehouseService.update(id, session.user.id, warehouseId, dto);
   }
@@ -32,7 +44,7 @@ export class WarehouseController {
   async delete(
     @Param('id') id: string,
     @Param('warehouseId') warehouseId: string,
-    @Session() session: UserSession
+    @Session() session: UserSession,
   ) {
     return this.warehouseService.delete(id, session.user.id, warehouseId);
   }

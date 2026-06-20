@@ -59,6 +59,12 @@ export class CreateProductDto {
   @IsOptional()
   unit?: ProductUnit;
 
+  // Perishable products require an expiry date per purchased lot and have stock
+  // tracked in dated StockBatch rows (FEFO, expired units blocked from sale).
+  @IsBoolean()
+  @IsOptional()
+  isPerishable?: boolean;
+
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
@@ -87,6 +93,10 @@ export class UpdateProductDto {
   @IsEnum(ProductUnit)
   @IsOptional()
   unit?: ProductUnit;
+
+  @IsBoolean()
+  @IsOptional()
+  isPerishable?: boolean;
 
   @IsBoolean()
   @IsOptional()

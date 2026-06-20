@@ -6,6 +6,7 @@ import {
   Param,
   Post,
   Put,
+  Query,
 } from '@nestjs/common';
 import { Session } from '@thallesp/nestjs-better-auth';
 import type { UserSession } from '@thallesp/nestjs-better-auth';
@@ -18,6 +19,7 @@ import {
   UpdateProductDto,
   UpdateVariantDto,
 } from './dto/product.dto';
+import { ProductQueryDto } from './dto/product-query.dto';
 
 @Controller('org/:id')
 export class ProductsController {
@@ -28,6 +30,16 @@ export class ProductsController {
   @Get('products')
   findAll(@Param('id') id: string, @Session() session: UserSession) {
     return this.productsService.findAll(id, session.user.id);
+  }
+
+  // Declared before the `:productId` catch-all so it isn't read as an id.
+  @Get('products/paged')
+  findAllPaged(
+    @Param('id') id: string,
+    @Session() session: UserSession,
+    @Query() query: ProductQueryDto,
+  ) {
+    return this.productsService.findAllPaged(id, session.user.id, query);
   }
 
   @Get('products/:productId')

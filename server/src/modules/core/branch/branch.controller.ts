@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Put, Delete, Body, Param } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+} from '@nestjs/common';
 import { Session } from '@thallesp/nestjs-better-auth';
 import type { UserSession } from '@thallesp/nestjs-better-auth';
 import { BranchService } from './branch.service';
@@ -14,7 +22,11 @@ export class BranchController {
   }
 
   @Post()
-  async create(@Param('id') id: string, @Session() session: UserSession, @Body() dto: CreateBranchDto) {
+  async create(
+    @Param('id') id: string,
+    @Session() session: UserSession,
+    @Body() dto: CreateBranchDto,
+  ) {
     return this.branchService.create(id, session.user.id, dto);
   }
 
@@ -23,7 +35,7 @@ export class BranchController {
     @Param('id') id: string,
     @Param('branchId') branchId: string,
     @Session() session: UserSession,
-    @Body() dto: UpdateBranchDto
+    @Body() dto: UpdateBranchDto,
   ) {
     return this.branchService.update(id, session.user.id, branchId, dto);
   }
@@ -32,7 +44,7 @@ export class BranchController {
   async delete(
     @Param('id') id: string,
     @Param('branchId') branchId: string,
-    @Session() session: UserSession
+    @Session() session: UserSession,
   ) {
     return this.branchService.delete(id, session.user.id, branchId);
   }

@@ -16,6 +16,3 @@ describe('PlanService', () => {
     expect(service).toBeDefined();
   });
 });
-
-
-

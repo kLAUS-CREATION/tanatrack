@@ -101,8 +101,11 @@ model Organization {
   productCategories ProductCategory[]
   products          Product[]
   stockMovements    StockMovement[]
+  stockBatches      StockBatch[]
   sales             Sale[]
+  saleReturns       SaleReturn[]
   purchases         Purchase[]
+  purchaseReturns   PurchaseReturn[]
   customers         Customer[]
   suppliers         Supplier[]
 
@@ -208,6 +211,7 @@ model Branch {
   inviteLocations InviteLocation[]
 
   stockLevels    StockLevel[]    @relation("StockLevelBranch")
+  stockBatches   StockBatch[]    @relation("StockBatchBranch")
   movementsFrom  StockMovement[] @relation("StockMovementFromBranch")
   movementsTo    StockMovement[] @relation("StockMovementToBranch")
   sales          Sale[]
@@ -250,6 +254,7 @@ model Warehouse {
   inviteLocations InviteLocation[]
 
   stockLevels    StockLevel[]    @relation("StockLevelWarehouse")
+  stockBatches   StockBatch[]    @relation("StockBatchWarehouse")
   movementsFrom  StockMovement[] @relation("StockMovementFromWarehouse")
   movementsTo    StockMovement[] @relation("StockMovementToWarehouse")
   purchases      Purchase[]      @relation("PurchaseWarehouse")
@@ -452,6 +457,9 @@ model Product {
   description    String?
   unit           ProductUnit @default(PIECE)
   isActive       Boolean     @default(true)
+  // Perishable products carry an expiry date per purchased batch; stock is then
+  // tracked in dated StockBatch rows (FEFO) and expired units cannot be sold.
+  isPerishable   Boolean     @default(false)
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 
@@ -480,6 +488,7 @@ model ProductVariant {
 
   product     Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
   stockLevels StockLevel[]
+  stockBatches StockBatch[]
   movements   StockMovement[]
   saleItems   SaleItem[]
   purchaseItems PurchaseItem[]
@@ -547,6 +556,34 @@ model StockMovement {
   @@map("stock_movement")
 }
 
+// --- EXPIRY BATCHES (perishable products only — the "expires when") ---
+// A dated lot of a perishable variant at one location. Mirrors StockLevel's
+// polymorphic location (zero-or-one of branchId/warehouseId; both null = the
+// org receiving pool). For a perishable variant at a location, the sum of its
+// StockBatch.quantity equals the matching StockLevel.quantity. Sales consume
+// non-expired batches FEFO (soonest expiryDate first); expired units are blocked
+// from sale and removed via a maker-checker write-off.
+model StockBatch {
+  id             String   @id @default(cuid())
+  organizationId String
+  variantId      String
+  branchId       String?
+  warehouseId    String?
+  quantity       Int      @default(0)
+  expiryDate     DateTime
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  variant      ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  branch       Branch?        @relation("StockBatchBranch", fields: [branchId], references: [id], onDelete: Cascade)
+  warehouse    Warehouse?     @relation("StockBatchWarehouse", fields: [warehouseId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([variantId, branchId, warehouseId, expiryDate])
+  @@map("stock_batch")
+}
+
 // --- SALES ---
 
 model Sale {
@@ -558,7 +595,14 @@ model Sale {
   customerName   String?
   customerPhone  String?
   subtotal       Int // minor units
-  total          Int // minor units
+  discount       Int            @default(0) // minor units, applied before tax
+  tax            Int            @default(0) // minor units
+  total          Int // minor units = subtotal - discount + tax
+  amountPaid     Int            @default(0) // minor units tendered at sale time
+  refundedTotal  Int            @default(0) // cumulative refunded via returns
+  paymentMethod  PaymentMethod?
+  paymentStatus  PaymentStatus  @default(UNPAID)
+  paymentRef     String? // mock gateway transaction reference
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -566,6 +610,7 @@ model Sale {
   branch       Branch       @relation(fields: [branchId], references: [id], onDelete: Cascade)
   customer     Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
   items        SaleItem[]
+  returns      SaleReturn[]
 
   @@index([organizationId])
   @@index([branchId])
@@ -575,19 +620,58 @@ model Sale {
 }
 
 model SaleItem {
-  id        String @id @default(cuid())
-  saleId    String
-  variantId String
-  quantity  Int
-  unitPrice Int // minor units, snapshot at sale time
-  lineTotal Int // minor units = quantity * unitPrice
+  id               String @id @default(cuid())
+  saleId           String
+  variantId        String
+  quantity         Int
+  unitPrice        Int // minor units, snapshot at sale time
+  lineTotal        Int // minor units = quantity * unitPrice
+  returnedQuantity Int    @default(0) // units returned so far (caps partial returns)
 
-  sale    Sale           @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  sale     Sale             @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  variant  ProductVariant   @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  returns  SaleReturnItem[]
 
   @@index([saleId])
   @@index([variantId])
   @@map("sale_item")
+}
+
+// A (partial) return against a Sale: restocks items, reverses part of the total.
+model SaleReturn {
+  id             String   @id @default(cuid())
+  organizationId String
+  saleId         String
+  branchId       String
+  processedBy    String // userId
+  total          Int // minor units refunded
+  reason         String?
+  createdAt      DateTime @default(now())
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sale         Sale             @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  items        SaleReturnItem[]
+
+  @@index([organizationId])
+  @@index([saleId])
+  @@map("sale_return")
+}
+
+model SaleReturnItem {
+  id         String @id @default(cuid())
+  returnId   String
+  saleItemId String
+  variantId  String
+  quantity   Int
+  unitPrice  Int // minor units, snapshot from the sale line
+  lineTotal  Int // minor units = quantity * unitPrice
+
+  saleReturn SaleReturn @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  saleItem   SaleItem   @relation(fields: [saleItemId], references: [id], onDelete: Cascade)
+
+  @@index([returnId])
+  @@index([saleItemId])
+  @@map("sale_return_item")
 }
 
 // --- PURCHASES (stock inflow from a supplier — mirror of Sale) ---
@@ -610,6 +694,7 @@ model Purchase {
   warehouse    Warehouse?     @relation("PurchaseWarehouse", fields: [warehouseId], references: [id], onDelete: SetNull)
   supplier     Supplier?      @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   items        PurchaseItem[]
+  returns      PurchaseReturn[]
 
   @@index([organizationId])
   @@index([supplierId])
@@ -618,19 +703,61 @@ model Purchase {
 }
 
 model PurchaseItem {
-  id         String @id @default(cuid())
-  purchaseId String
-  variantId  String
-  quantity   Int
-  unitCost   Int // minor units, cost paid at purchase time
-  lineTotal  Int // minor units = quantity * unitCost
+  id               String @id @default(cuid())
+  purchaseId       String
+  variantId        String
+  quantity         Int
+  unitCost         Int // minor units, cost paid at purchase time
+  lineTotal        Int // minor units = quantity * unitCost
+  returnedQuantity Int    @default(0) // units returned to supplier so far (caps partial returns)
+  expiryDate       DateTime? // set when the product is perishable; mirrors the received StockBatch
 
-  purchase Purchase       @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
-  variant  ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  purchase Purchase             @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  variant  ProductVariant       @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  returns  PurchaseReturnItem[]
 
   @@index([purchaseId])
   @@index([variantId])
   @@map("purchase_item")
+}
+
+// A (partial) return against a Purchase: stock leaves the receiving pool back to
+// the supplier, reversing part of the purchase total. Mirror of SaleReturn.
+model PurchaseReturn {
+  id             String   @id @default(cuid())
+  organizationId String
+  purchaseId     String
+  supplierId     String?
+  supplierName   String?
+  processedBy    String // userId
+  total          Int // minor units returned (at purchase cost)
+  reason         String?
+  createdAt      DateTime @default(now())
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  purchase     Purchase             @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  items        PurchaseReturnItem[]
+
+  @@index([organizationId])
+  @@index([purchaseId])
+  @@map("purchase_return")
+}
+
+model PurchaseReturnItem {
+  id             String @id @default(cuid())
+  returnId       String
+  purchaseItemId String
+  variantId      String
+  quantity       Int
+  unitCost       Int // minor units, snapshot from the purchase line
+  lineTotal      Int // minor units = quantity * unitCost
+
+  purchaseReturn PurchaseReturn @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  purchaseItem   PurchaseItem   @relation(fields: [purchaseItemId], references: [id], onDelete: Cascade)
+
+  @@index([returnId])
+  @@index([purchaseItemId])
+  @@map("purchase_return_item")
 }
 
 // --- CONTACTS (org-wide reference data) ---
@@ -643,6 +770,7 @@ model Customer {
   email          String?
   address        String?
   notes          String?
+  balance        Int      @default(0) // minor units owed to us (receivable); >0 = customer owes
   isActive       Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -761,10 +889,29 @@ enum ProductUnit {
 }
 
 enum MovementType {
-  PURCHASE_IN // new stock received into a location (to-side set)
-  SALE_OUT    // stock leaving a branch via a sale (from-side set)
-  TRANSFER    // stock moved location→location (both sides set)
-  ADJUSTMENT  // manual correction (sign encoded by which side is set)
+  PURCHASE_IN    // new stock received into a location (to-side set)
+  SALE_OUT       // stock leaving a branch via a sale (from-side set)
+  SALE_RETURN    // stock returning to a branch via a sale return (to-side set)
+  PURCHASE_RETURN // stock leaving via a return to a supplier (from-side set)
+  TRANSFER       // stock moved location→location (both sides set)
+  ADJUSTMENT     // manual correction (sign encoded by which side is set)
+  EXPIRY_WRITE_OFF // perishable units removed because they expired (from-side set)
+}
+
+// Tender used to settle a sale (mock gateway — no real processor).
+enum PaymentMethod {
+  CASH
+  CARD
+  MOBILE_MONEY
+}
+
+// Settlement state of a sale, including post-return refund states.
+enum PaymentStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  PARTIALLY_REFUNDED
+  REFUNDED
 }
 
 // --- CHANGE APPROVAL (maker–checker) — products, categories, suppliers, … ---

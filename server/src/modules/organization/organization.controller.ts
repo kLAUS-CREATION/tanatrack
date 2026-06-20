@@ -10,7 +10,11 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { OrganizationService } from './organization.service';
-import { CreateOrganizationDto, UpgradePlanDto, UpdateOrganizationDto } from './dto/organization.dto';
+import {
+  CreateOrganizationDto,
+  UpgradePlanDto,
+  UpdateOrganizationDto,
+} from './dto/organization.dto';
 import { Session } from '@thallesp/nestjs-better-auth';
 import type { UserSession } from '@thallesp/nestjs-better-auth';
 

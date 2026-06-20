@@ -3,19 +3,14 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { MovementType, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from 'src/modules/prisma/prisma.service';
 import {
   MembershipService,
   AccessContext,
 } from '../membership/membership.service';
 import { PERMISSIONS } from 'src/constants/permissions.constant';
-import {
-  AdjustStockDto,
-  LocationDto,
-  PurchaseInDto,
-  TransferStockDto,
-} from './dto/inventory.dto';
+import { LocationDto } from './dto/inventory.dto';
 
 // Resolved location: exactly one key is set. Spread into Prisma where/create
 // and pass `context` straight into verifyAccess.
@@ -48,6 +43,29 @@ export class InventoryService {
         warehouse: true,
       },
     });
+  }
+
+  // Stock rows at or below their configured reorder point (low-stock alerts).
+  async lowStock(orgId: string, userId: string) {
+    await this.membershipService.verifyAccess(
+      userId,
+      orgId,
+      PERMISSIONS.INVENTORY_VIEW_GLOBAL_STOCK,
+    );
+    const levels = await this.prisma.stockLevel.findMany({
+      where: {
+        variant: { product: { organizationId: orgId } },
+        reorderPoint: { not: null },
+      },
+      include: {
+        variant: { include: { product: true } },
+        branch: true,
+        warehouse: true,
+      },
+    });
+    return levels
+      .filter((l) => l.reorderPoint != null && l.quantity <= l.reorderPoint)
+      .sort((a, b) => a.quantity - b.quantity);
   }
 
   async locationStock(orgId: string, userId: string, loc: LocationDto) {
@@ -88,145 +106,31 @@ export class InventoryService {
     });
   }
 
+  // Dated expiry batches for perishable stock (pool + every location). Drives the
+  // inventory Expiry view and the write-off picker.
+  async batches(orgId: string, userId: string) {
+    await this.membershipService.verifyAccess(
+      userId,
+      orgId,
+      PERMISSIONS.INVENTORY_VIEW_GLOBAL_STOCK,
+    );
+    return this.prisma.stockBatch.findMany({
+      where: { organizationId: orgId, quantity: { gt: 0 } },
+      include: {
+        variant: { include: { product: true } },
+        branch: true,
+        warehouse: true,
+      },
+      orderBy: { expiryDate: 'asc' },
+    });
+  }
+
   // --- WRITES ---
 
-  async purchaseIn(orgId: string, userId: string, dto: PurchaseInDto) {
-    const dest = await this.resolveLocation(orgId, dto);
-    await this.membershipService.verifyAccess(
-      userId,
-      orgId,
-      PERMISSIONS.INVENTORY_PURCHASE_IN,
-      dest.context,
-    );
-
-    return this.prisma.$transaction(async (tx) => {
-      await this.assertVariantInOrg(tx, orgId, dto.variantId);
-      await this.incrementStock(tx, dto.variantId, dest, dto.quantity);
-      return tx.stockMovement.create({
-        data: {
-          organizationId: orgId,
-          variantId: dto.variantId,
-          type: MovementType.PURCHASE_IN,
-          quantity: dto.quantity,
-          reason: dto.reason,
-          reference: dto.reference,
-          performedBy: userId,
-          toBranchId: dest.branchId,
-          toWarehouseId: dest.warehouseId,
-        },
-      });
-    });
-  }
-
-  async adjustStock(orgId: string, userId: string, dto: AdjustStockDto) {
-    const loc = await this.resolveLocation(orgId, dto);
-    await this.membershipService.verifyAccess(
-      userId,
-      orgId,
-      PERMISSIONS.INVENTORY_ADJUST_STOCK,
-      loc.context,
-    );
-
-    return this.prisma.$transaction(async (tx) => {
-      await this.assertVariantInOrg(tx, orgId, dto.variantId);
-
-      const level = await tx.stockLevel.findFirst({
-        where: {
-          variantId: dto.variantId,
-          branchId: loc.branchId ?? null,
-          warehouseId: loc.warehouseId ?? null,
-        },
-      });
-      const current = level?.quantity ?? 0;
-      const target = dto.quantity;
-      const delta = target - current;
-
-      if (level) {
-        await tx.stockLevel.update({
-          where: { id: level.id },
-          data: {
-            quantity: target,
-            reorderPoint: dto.reorderPoint ?? level.reorderPoint,
-          },
-        });
-      } else {
-        await tx.stockLevel.create({
-          data: {
-            variantId: dto.variantId,
-            branchId: loc.branchId,
-            warehouseId: loc.warehouseId,
-            quantity: target,
-            reorderPoint: dto.reorderPoint,
-          },
-        });
-      }
-
-      if (delta === 0) return level;
-
-      // quantity is the positive magnitude; direction is encoded by which side is set.
-      const positive = delta > 0;
-      return tx.stockMovement.create({
-        data: {
-          organizationId: orgId,
-          variantId: dto.variantId,
-          type: MovementType.ADJUSTMENT,
-          quantity: Math.abs(delta),
-          reason: dto.reason,
-          performedBy: userId,
-          toBranchId: positive ? loc.branchId : undefined,
-          toWarehouseId: positive ? loc.warehouseId : undefined,
-          fromBranchId: positive ? undefined : loc.branchId,
-          fromWarehouseId: positive ? undefined : loc.warehouseId,
-        },
-      });
-    });
-  }
-
-  async transferStock(orgId: string, userId: string, dto: TransferStockDto) {
-    const src = await this.resolveLocation(orgId, dto.from);
-    const dest = await this.resolveLocation(orgId, dto.to);
-
-    if (src.branchId === dest.branchId && src.warehouseId === dest.warehouseId) {
-      throw new BadRequestException(
-        'Source and destination must be different locations',
-      );
-    }
-
-    // Need permission to move stock out of the source AND into the destination.
-    await this.membershipService.verifyAccess(
-      userId,
-      orgId,
-      PERMISSIONS.INVENTORY_TRANSFER_STOCK,
-      src.context,
-    );
-    await this.membershipService.verifyAccess(
-      userId,
-      orgId,
-      PERMISSIONS.INVENTORY_TRANSFER_STOCK,
-      dest.context,
-    );
-
-    return this.prisma.$transaction(async (tx) => {
-      await this.assertVariantInOrg(tx, orgId, dto.variantId);
-      await this.decrementStock(tx, dto.variantId, src, dto.quantity);
-      await this.incrementStock(tx, dto.variantId, dest, dto.quantity);
-      return tx.stockMovement.create({
-        data: {
-          organizationId: orgId,
-          variantId: dto.variantId,
-          type: MovementType.TRANSFER,
-          quantity: dto.quantity,
-          reason: dto.reason,
-          reference: dto.reference,
-          performedBy: userId,
-          fromBranchId: src.branchId,
-          fromWarehouseId: src.warehouseId,
-          toBranchId: dest.branchId,
-          toWarehouseId: dest.warehouseId,
-        },
-      });
-    });
-  }
+  // Stock now enters via purchases (the receiving pool) and moves via
+  // AllocationsService (allocate pool→location, transfer location→location) as
+  // maker-checker STOCK_MOVE change requests. Direct purchase-in and adjustment
+  // were removed; this service keeps reads plus the shared stock primitives.
 
   // --- SHARED STOCK PRIMITIVES (reused by SalesService inside its own tx) ---
 
@@ -303,6 +207,182 @@ export class InventoryService {
       }
       throw e;
     }
+  }
+
+  // --- EXPIRY BATCH PRIMITIVES (perishable variants only) -------------------
+  // StockBatch mirrors StockLevel split by expiryDate. These run alongside the
+  // StockLevel ops above so the per-location batch sum stays equal to the
+  // StockLevel total for a perishable variant. Non-perishable variants never
+  // touch StockBatch (the existing fast path is unchanged).
+
+  /** Does this variant's product track expiry? */
+  async isVariantPerishable(
+    tx: Prisma.TransactionClient,
+    variantId: string,
+  ): Promise<boolean> {
+    const variant = await tx.productVariant.findUnique({
+      where: { id: variantId },
+      select: { product: { select: { isPerishable: true } } },
+    });
+    return variant?.product?.isPerishable ?? false;
+  }
+
+  /** Add `qty` into the batch keyed by (variant, location, expiryDate). */
+  async incrementBatch(
+    tx: Prisma.TransactionClient,
+    orgId: string,
+    variantId: string,
+    loc: { branchId?: string; warehouseId?: string },
+    expiryDate: Date,
+    qty: number,
+  ) {
+    const existing = await tx.stockBatch.findFirst({
+      where: {
+        variantId,
+        branchId: loc.branchId ?? null,
+        warehouseId: loc.warehouseId ?? null,
+        expiryDate,
+      },
+    });
+    if (existing) {
+      await tx.stockBatch.update({
+        where: { id: existing.id },
+        data: { quantity: { increment: qty } },
+      });
+      return;
+    }
+    await tx.stockBatch.create({
+      data: {
+        organizationId: orgId,
+        variantId,
+        branchId: loc.branchId,
+        warehouseId: loc.warehouseId,
+        quantity: qty,
+        expiryDate,
+      },
+    });
+  }
+
+  /**
+   * Deplete `qty` from a location's batches, soonest expiry first (FEFO).
+   * `mode` narrows which batches are eligible:
+   *   - 'nonExpired': only batches expiring after `asOf` (selling).
+   *   - 'expired': only batches at/▸before `asOf` (write-off).
+   *   - 'any': every batch regardless of expiry (location→location moves).
+   * Returns the consumed lots so callers can re-create them elsewhere.
+   * Throws if eligible batch quantity is less than `qty`.
+   */
+  async decrementBatchesFEFO(
+    tx: Prisma.TransactionClient,
+    variantId: string,
+    loc: { branchId?: string; warehouseId?: string },
+    qty: number,
+    mode: 'nonExpired' | 'expired' | 'any',
+    asOf: Date,
+  ): Promise<{ expiryDate: Date; quantity: number }[]> {
+    const where: Prisma.StockBatchWhereInput = {
+      variantId,
+      branchId: loc.branchId ?? null,
+      warehouseId: loc.warehouseId ?? null,
+      quantity: { gt: 0 },
+    };
+    if (mode === 'nonExpired') where.expiryDate = { gt: asOf };
+    else if (mode === 'expired') where.expiryDate = { lte: asOf };
+
+    const batches = await tx.stockBatch.findMany({
+      where,
+      orderBy: { expiryDate: 'asc' },
+    });
+
+    let remaining = qty;
+    const consumed: { expiryDate: Date; quantity: number }[] = [];
+    for (const b of batches) {
+      if (remaining <= 0) break;
+      const take = Math.min(b.quantity, remaining);
+      await tx.stockBatch.update({
+        where: { id: b.id },
+        data: { quantity: { decrement: take } },
+      });
+      consumed.push({ expiryDate: b.expiryDate, quantity: take });
+      remaining -= take;
+    }
+    if (remaining > 0) {
+      throw new BadRequestException(
+        'Insufficient in-date stock for this perishable item',
+      );
+    }
+    return consumed;
+  }
+
+  /** Sum of a location's batch quantity expiring after `asOf` (sellable). */
+  async availableNonExpired(
+    tx: Prisma.TransactionClient,
+    variantId: string,
+    loc: { branchId?: string; warehouseId?: string },
+    asOf: Date,
+  ): Promise<number> {
+    const agg = await tx.stockBatch.aggregate({
+      where: {
+        variantId,
+        branchId: loc.branchId ?? null,
+        warehouseId: loc.warehouseId ?? null,
+        expiryDate: { gt: asOf },
+      },
+      _sum: { quantity: true },
+    });
+    return agg._sum.quantity ?? 0;
+  }
+
+  /** Sum of a location's batch quantity at/before `asOf` (expired). */
+  async expiredQuantity(
+    tx: Prisma.TransactionClient,
+    variantId: string,
+    loc: { branchId?: string; warehouseId?: string },
+    asOf: Date,
+  ): Promise<number> {
+    const agg = await tx.stockBatch.aggregate({
+      where: {
+        variantId,
+        branchId: loc.branchId ?? null,
+        warehouseId: loc.warehouseId ?? null,
+        expiryDate: { lte: asOf },
+      },
+      _sum: { quantity: true },
+    });
+    return agg._sum.quantity ?? 0;
+  }
+
+  /**
+   * Restock returned perishable units. We don't know the original batch, so add
+   * to the branch's soonest-expiry open batch (best-effort), else create one
+   * dated `fallbackDays` out. Documented v1 simplification for sale returns.
+   */
+  async restockPerishableReturn(
+    tx: Prisma.TransactionClient,
+    orgId: string,
+    variantId: string,
+    loc: { branchId?: string; warehouseId?: string },
+    qty: number,
+    fallbackDays = 30,
+  ) {
+    const earliest = await tx.stockBatch.findFirst({
+      where: {
+        variantId,
+        branchId: loc.branchId ?? null,
+        warehouseId: loc.warehouseId ?? null,
+      },
+      orderBy: { expiryDate: 'asc' },
+    });
+    if (earliest) {
+      await tx.stockBatch.update({
+        where: { id: earliest.id },
+        data: { quantity: { increment: qty } },
+      });
+      return;
+    }
+    const fallback = new Date();
+    fallback.setDate(fallback.getDate() + fallbackDays);
+    await this.incrementBatch(tx, orgId, variantId, loc, fallback, qty);
   }
 
   /**

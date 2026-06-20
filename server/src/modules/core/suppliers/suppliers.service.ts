@@ -1,10 +1,22 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { ChangeEntity, ChangeOp } from '@prisma/client';
 import { PrismaService } from 'src/modules/prisma/prisma.service';
 import { MembershipService } from '../membership/membership.service';
 import { ChangeRequestService } from '../change-requests/change-request.service';
 import { PERMISSIONS } from 'src/constants/permissions.constant';
 import { CreateSupplierDto, UpdateSupplierDto } from './dto/supplier.dto';
+import { SupplierQueryDto } from './dto/supplier-query.dto';
+import {
+  activeWhere,
+  resolvePaging,
+  type Paginated,
+} from 'src/common/dto/pagination.dto';
+import { Prisma, Supplier } from '@prisma/client';
 
 @Injectable()
 export class SuppliersService {
@@ -19,9 +31,47 @@ export class SuppliersService {
     // attach one when recording a purchase). Mutations are maker-checker below.
     await this.membershipService.verifyAccess(userId, orgId);
     return this.prisma.supplier.findMany({
-      where: { organizationId: orgId },
+      where: { organizationId: orgId, isActive: true },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  // Server-paginated + filtered list for the suppliers page. The plain findAll
+  // above stays for the purchase supplier picker (needs the full array).
+  async findAllPaged(
+    orgId: string,
+    userId: string,
+    query: SupplierQueryDto,
+  ): Promise<Paginated<Supplier>> {
+    await this.membershipService.verifyAccess(userId, orgId);
+    const { skip, take, page, pageSize } = resolvePaging(query);
+
+    const search = query.search?.trim();
+    const where: Prisma.SupplierWhereInput = {
+      organizationId: orgId,
+      ...activeWhere(query.status),
+      ...(search
+        ? {
+            OR: [
+              { name: { contains: search, mode: 'insensitive' } },
+              { contactPerson: { contains: search, mode: 'insensitive' } },
+              { phone: { contains: search, mode: 'insensitive' } },
+              { email: { contains: search, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+    };
+
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.supplier.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+      }),
+      this.prisma.supplier.count({ where }),
+    ]);
+    return { data, total, page, pageSize };
   }
 
   async findOne(orgId: string, userId: string, supplierId: string) {
@@ -41,6 +91,7 @@ export class SuppliersService {
 
   async create(orgId: string, userId: string, dto: CreateSupplierDto) {
     await this.assertCanManage(orgId, userId);
+    await this.assertWithinSupplierLimit(orgId);
     return this.changeRequests.submit(orgId, userId, {
       entity: ChangeEntity.SUPPLIER,
       operation: ChangeOp.CREATE,
@@ -50,6 +101,35 @@ export class SuppliersService {
           data: { ...dto, organizationId: orgId },
         }),
     });
+  }
+
+  // Lenient plan-limit guard for the `max_suppliers` feature (absent → unlimited).
+  private async assertWithinSupplierLimit(orgId: string) {
+    const org = await this.prisma.organization.findUnique({
+      where: { id: orgId },
+      include: {
+        subscription: {
+          include: {
+            plan: { include: { planFeatures: { include: { feature: true } } } },
+          },
+        },
+      },
+    });
+    if (!org) throw new NotFoundException('Organization not found');
+    const feature = org.subscription?.plan.planFeatures.find(
+      (f) => f.feature.key === 'max_suppliers',
+    );
+    if (!feature) return;
+    const allowed = parseInt(feature.value, 10);
+    if (Number.isNaN(allowed)) return;
+    const count = await this.prisma.supplier.count({
+      where: { organizationId: orgId, isActive: true },
+    });
+    if (count >= allowed) {
+      throw new BadRequestException(
+        `Limit reached. Your plan allows only ${allowed} suppliers.`,
+      );
+    }
   }
 
   async update(
@@ -77,7 +157,12 @@ export class SuppliersService {
       entity: ChangeEntity.SUPPLIER,
       operation: ChangeOp.DELETE,
       supplierId,
-      apply: () => this.prisma.supplier.delete({ where: { id: supplierId } }),
+      // Soft delete: keep the row so historical purchases still resolve it.
+      apply: () =>
+        this.prisma.supplier.update({
+          where: { id: supplierId },
+          data: { isActive: false },
+        }),
     });
   }
 
@@ -90,7 +175,9 @@ export class SuppliersService {
         PERMISSIONS.SUPPLIERS_MANAGE,
       )) || (await this.changeRequests.isApprover(orgId, userId));
     if (!allowed) {
-      throw new ForbiddenException('Missing required permission: SUPPLIERS_MANAGE');
+      throw new ForbiddenException(
+        'Missing required permission: SUPPLIERS_MANAGE',
+      );
     }
   }
 

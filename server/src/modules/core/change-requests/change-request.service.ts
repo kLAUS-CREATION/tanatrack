@@ -172,7 +172,11 @@ export class ChangeRequestService {
     }
 
     try {
-      const appliedRefId = await this.applyChangeRequest(orgId, request, userId);
+      const appliedRefId = await this.applyChangeRequest(
+        orgId,
+        request,
+        userId,
+      );
       return this.prisma.changeRequest.update({
         where: { id: request.id },
         data: { appliedRefId },

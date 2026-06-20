@@ -104,38 +104,18 @@ async function main() {
     {
       category: FeatureCategory.INVENTORY,
       action: "VIEW_GLOBAL_STOCK",
-      name: "View Global Stock Summary",
-      description: "See total stock levels across all locations",
+      name: "See Inventory",
+      description:
+        "View the inventory page and stock levels across all locations",
       scope: PermissionScope.GLOBAL,
     },
     {
       category: FeatureCategory.INVENTORY,
       action: "MANAGE",
-      name: "Allocate Received Stock",
+      name: "Manage Inventory",
       description:
-        "Move purchased (unallocated) stock from the receiving pool to a branch or warehouse",
+        "Allocate received (pool) stock and transfer stock between locations. Changes are queued for approval unless the member is an owner/administrator.",
       scope: PermissionScope.GLOBAL,
-    },
-    {
-      category: FeatureCategory.INVENTORY,
-      action: "ADJUST_STOCK",
-      name: "Adjust Stock",
-      description: "Correct stock counts in a location",
-      scope: PermissionScope.LOCAL,
-    },
-    {
-      category: FeatureCategory.INVENTORY,
-      action: "PURCHASE_IN",
-      name: "Receive Stock",
-      description: "Receive new stock (purchase-in) into a branch or warehouse",
-      scope: PermissionScope.LOCAL,
-    },
-    {
-      category: FeatureCategory.INVENTORY,
-      action: "TRANSFER_STOCK",
-      name: "Transfer Stock",
-      description: "Move stock between two locations",
-      scope: PermissionScope.LOCAL,
     },
     {
       category: FeatureCategory.INVENTORY,

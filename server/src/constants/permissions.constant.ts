@@ -27,11 +27,8 @@ export const PERMISSIONS = {
   PRODUCTS_VIEW_ALL: 'PRODUCTS_VIEW_ALL', // GLOBAL
   PRODUCTS_MANAGE: 'PRODUCTS_MANAGE', // GLOBAL — create/update/delete products & variants
   PRODUCTS_MANAGE_CATEGORIES: 'PRODUCTS_MANAGE_CATEGORIES', // GLOBAL
-  INVENTORY_VIEW_GLOBAL_STOCK: 'INVENTORY_VIEW_GLOBAL_STOCK', // GLOBAL
-  INVENTORY_MANAGE: 'INVENTORY_MANAGE', // GLOBAL — allocate received (pool) stock to locations (maker-checker)
-  INVENTORY_ADJUST_STOCK: 'INVENTORY_ADJUST_STOCK', // LOCAL
-  INVENTORY_PURCHASE_IN: 'INVENTORY_PURCHASE_IN', // LOCAL — receive new stock
-  INVENTORY_TRANSFER_STOCK: 'INVENTORY_TRANSFER_STOCK', // LOCAL — move stock between locations
+  INVENTORY_VIEW_GLOBAL_STOCK: 'INVENTORY_VIEW_GLOBAL_STOCK', // GLOBAL — "see inventory": view the /inventory page and stock levels
+  INVENTORY_MANAGE: 'INVENTORY_MANAGE', // GLOBAL — "manage inventory": allocate pool stock AND transfer between locations (maker-checker; queued unless owner/admin)
   INVENTORY_VIEW_BRANCH_STOCK: 'INVENTORY_VIEW_BRANCH_STOCK', // LOCAL
 
   // REPORTS
