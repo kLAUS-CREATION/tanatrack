@@ -1,17 +1,23 @@
-import { createAuthClient } from "better-auth/client";
+// Auth runs against the custom NestJS backend (see lib/features/services/auth.api.ts),
+// so these are plain types describing the session/user payloads it returns.
 
-// Plugins
-import { emailOTPClient } from "better-auth/client/plugins";
-const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-
-if (!apiUrl) {
-  throw new Error("Cannot get the backend url");
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  username?: string;
+  emailVerified?: boolean;
+  image?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-export const authClient = createAuthClient({
-  baseURL: apiUrl,
-  plugins: [emailOTPClient()],
-});
-
-export type Session = typeof authClient.$Infer.Session;
-export type User = Session["user"];
+export interface Session {
+  user: User;
+  session?: {
+    id: string;
+    token?: string;
+    userId?: string;
+    expiresAt?: string;
+  };
+}

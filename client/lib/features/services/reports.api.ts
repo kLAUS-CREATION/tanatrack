@@ -5,7 +5,14 @@ export interface ReportKpis {
   purchaseSpend: number;
   cogs: number;
   grossProfit: number;
+  /** grossProfit / salesRevenue, as a 0..1 ratio. */
+  grossMargin: number;
+  averageOrderValue: number;
+  /** Outstanding receivable: billed minus tendered. */
+  receivables: number;
+  returnsTotal: number;
   inventoryValue: number;
+  inventoryUnits: number;
   salesCount: number;
   purchaseCount: number;
   productCount: number;
@@ -17,10 +24,45 @@ export interface SalesTrendPoint {
   total: number;
 }
 
+export interface RevenueSpendPoint {
+  date: string;
+  revenue: number;
+  spend: number;
+}
+
+export interface BranchSalesRow {
+  name: string;
+  total: number;
+  count: number;
+}
+
+export interface PaymentMethodRow {
+  method: string;
+  total: number;
+  count: number;
+}
+
+export interface LocationValueRow {
+  name: string;
+  value: number;
+  units: number;
+}
+
 export interface TopProduct {
   name: string;
   variantName: string;
   quantity: number;
+  revenue: number;
+}
+
+export interface TopCustomer {
+  name: string;
+  revenue: number;
+  orders: number;
+}
+
+export interface CategoryRevenueRow {
+  name: string;
   revenue: number;
 }
 
@@ -36,7 +78,13 @@ export interface LowStockRow {
 export interface ReportOverview {
   kpis: ReportKpis;
   salesTrend: SalesTrendPoint[];
+  revenueVsSpend: RevenueSpendPoint[];
+  salesByBranch: BranchSalesRow[];
+  paymentMethods: PaymentMethodRow[];
+  inventoryByLocation: LocationValueRow[];
   topProducts: TopProduct[];
+  topCustomers: TopCustomer[];
+  topCategories: CategoryRevenueRow[];
   lowStock: LowStockRow[];
 }
 

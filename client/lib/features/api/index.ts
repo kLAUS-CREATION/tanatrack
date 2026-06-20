@@ -39,6 +39,6 @@ const axiosBaseQuery =
 export const apiSlice = createApi({
   reducerPath: "api",
   baseQuery: axiosBaseQuery(),
-  tagTypes: ["Auth", "User", "Plans", "Organizations", "Membership", "Branch", "Warehouse", "Product", "ProductCategory", "ChangeRequest", "StockLevel", "StockMovement", "Sale", "Purchase", "Supplier", "Customer", "Report"],
+  tagTypes: ["Auth", "User", "Plans", "Organizations", "Membership", "Branch", "Warehouse", "Product", "ProductCategory", "ChangeRequest", "StockLevel", "StockMovement", "StockBatch", "Sale", "Purchase", "Supplier", "Customer", "Report"],
   endpoints: () => ({}),
 });

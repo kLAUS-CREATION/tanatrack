@@ -15,11 +15,10 @@ type NavItem = { title: string; link: string; icon: LucideIcon }
 
 export function NavMain({ items }: { items: NavItem[] }) {
   const pathname = usePathname()
-  // pathname looks like /<lang>/organizations/<orgId>/<section>/...
   const segments = pathname.split("/")
   const lang = segments[1]
   const orgId = segments[3]
-  const section = segments[4] ?? "" // "" while on the dashboard root
+  const section = segments[4] ?? ""
 
   return (
     <SidebarGroup className="px-2">
@@ -54,7 +53,7 @@ export function NavMain({ items }: { items: NavItem[] }) {
                   )}>{item.title}</span>
                   {isActive && (
                     <div
-                      className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 rounded-r-full bg-primary animate-in fade-in duration-300"
+                      className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1 bg-primary animate-in fade-in duration-300"
                     />
                   )}
                 </Link>
@@ -65,6 +64,4 @@ export function NavMain({ items }: { items: NavItem[] }) {
       </SidebarMenu>
     </SidebarGroup>
   )
-
-
 }

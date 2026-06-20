@@ -388,7 +388,7 @@ function PermissionMatrix({
 
         return (
           <div key={group.category} className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-            <div className="flex items-center justify-between mb-4 bg-muted/40 p-3 rounded-xl border border-border/50">
+            <div className="flex items-center justify-between mb-4 py-2">
               <div className="flex items-center gap-3">
                 <div className="h-8 w-1 bg-primary rounded-full" />
                 <h3 className="font-bold text-lg tracking-tight uppercase">{categoryLabel(group.category)}</h3>
@@ -402,7 +402,7 @@ function PermissionMatrix({
               >
                 {isAllInGroupSelected ? <CheckSquare className="h-4 w-4" /> : isSomeInGroupSelected ? <Square className="h-4 w-4 fill-primary/20" /> : <Square className="h-4 w-4" />}
                 <span className="text-xs font-bold tracking-widest uppercase">
-                  {isAllInGroupSelected ? "Deselect All" : "Select All Category"}
+                  {isAllInGroupSelected ? "Deselect All" : "Select All"}
                 </span>
               </Button>
             </div>

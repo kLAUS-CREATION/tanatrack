@@ -11,7 +11,6 @@ import { useCheckVerificationOtpMutation } from "@/lib/features/services/auth.ap
 import { InputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator } from "@/components/ui/input-otp";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
-import { AxiosError } from "axios";
 import SectionHeading from "@/components/shared/section-heading";
 
 export default function ForgotPasswordOtp() {
@@ -36,8 +35,9 @@ export default function ForgotPasswordOtp() {
       params.set("email", email);
       params.set("otp", values.code);
       router.push(`/auth/reset-password?${params.toString()}`);
-    } catch (error: AxiosError) {
-      toast.error(error?.data?.message || "Invalid or expired code.");
+    } catch (error: unknown) {
+      const message = (error as { data?: { message?: string } })?.data?.message;
+      toast.error(message || "Invalid or expired code.");
       form.setError("code", { message: "Invalid code" });
     }
   }

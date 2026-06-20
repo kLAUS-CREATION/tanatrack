@@ -72,7 +72,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </Breadcrumb>
           </div>
         </header>
-        <main className="flex flex-1 flex-col gap-4 p-4 pt-0 min-h-full overflow-y-auto overflow-x-hidden">
+        <main className="flex flex-1 flex-col gap-4 p-4 pt-0 overflow-y-auto overflow-x-hidden">
           <div className="flex-1 flex flex-col h-full animate-in fade-in slide-in-from-bottom-2 duration-300">
             {children}
           </div>

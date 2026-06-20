@@ -5,7 +5,7 @@ import { Mail, ArrowRight } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "../ui/button"
 import Link from "next/link"
-import { useResendVerificationEmail } from "@/lib/hooks/auth/useVerifyEmail"
+import { useSendVerificationOtpMutation } from "@/lib/features/services/auth.api"
 
 interface VerifyEmailWaitingProps {
   email: string
@@ -14,7 +14,7 @@ interface VerifyEmailWaitingProps {
 export function VerifyEmailWaiting({ email }: VerifyEmailWaitingProps) {
   const [resendTimer, setResendTimer] = useState(0)
   const [resendAttempts, setResendAttempts] = useState(0)
-  const { mutate: resendEmail, isPending } = useResendVerificationEmail()
+  const [resendEmail, { isLoading: isPending }] = useSendVerificationOtpMutation()
 
   useEffect(() => {
     if (resendTimer > 0) {
@@ -31,15 +31,15 @@ export function VerifyEmailWaiting({ email }: VerifyEmailWaitingProps) {
       return
     }
 
-    resendEmail(
-      { email },
-      {
-        onSuccess: () => {
-          setResendTimer(60)
-          setResendAttempts((prev) => prev + 1)
-        },
-      },
-    )
+    resendEmail({ email, type: "email-verification" })
+      .unwrap()
+      .then(() => {
+        setResendTimer(60)
+        setResendAttempts((prev) => prev + 1)
+      })
+      .catch(() => {
+        toast.error("Failed to resend verification email. Please try again.")
+      })
   }
 
   const canResend = resendTimer === 0 && resendAttempts < 3
@@ -73,7 +73,7 @@ export function VerifyEmailWaiting({ email }: VerifyEmailWaitingProps) {
           {/* Open Email Button */}
           <div className="mb-8">
             <Button
-              variant={"btn"}
+              variant={"default"}
               onClick={() => window.open("https://mail.google.com", "_blank")}
               className=""
             >

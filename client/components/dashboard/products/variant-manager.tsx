@@ -18,15 +18,18 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm-dialog";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Loader2, Plus, Trash2, Pencil, QrCode } from "lucide-react";
 import { toast } from "sonner";
 import { formatMoney } from "@/lib/utils";
 import {
   IProduct,
+  IProductVariant,
   isPendingChange,
   useAddVariantMutation,
   useDeleteVariantMutation,
 } from "@/lib/features/services/product.api";
+import { VariantEditDialog } from "./variant-edit-dialog";
+import { VariantQrDialog } from "./variant-qr-dialog";
 
 const toMinor = (n: number) => Math.round(n * 100);
 
@@ -46,6 +49,9 @@ export function VariantManager({
   const [sku, setSku] = useState("");
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
+
+  const [editing, setEditing] = useState<IProductVariant | null>(null);
+  const [qrVariant, setQrVariant] = useState<IProductVariant | null>(null);
 
   const [addVariant, { isLoading: isAdding }] = useAddVariantMutation();
   const [deleteVariant] = useDeleteVariantMutation();
@@ -156,14 +162,35 @@ export function VariantManager({
                     <TableCell>{v.name}</TableCell>
                     <TableCell>{formatMoney(v.sellingPrice)}</TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="text-destructive h-7 w-7"
-                        onClick={() => handleDelete(v.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7"
+                          title="QR code"
+                          onClick={() => setQrVariant(v)}
+                        >
+                          <QrCode className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7"
+                          title="Edit"
+                          onClick={() => setEditing(v)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="text-destructive h-7 w-7"
+                          title="Remove"
+                          onClick={() => handleDelete(v.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -173,6 +200,20 @@ export function VariantManager({
         </div>
         </DialogContent>
       </Dialog>
+      <VariantEditDialog
+        key={editing?.id ?? "none"}
+        isOpen={!!editing}
+        onClose={() => setEditing(null)}
+        orgId={orgId}
+        productId={product.id}
+        variant={editing}
+      />
+      <VariantQrDialog
+        isOpen={!!qrVariant}
+        onClose={() => setQrVariant(null)}
+        orgId={orgId}
+        variant={qrVariant}
+      />
       {ConfirmDialog}
     </>
   );

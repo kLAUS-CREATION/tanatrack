@@ -8,6 +8,7 @@ export interface ICustomer {
   email?: string | null;
   address?: string | null;
   notes?: string | null;
+  balance: number;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useSession } from "@/lib/hooks/auth/useGetSession";
+import { useGetSessionQuery } from "@/lib/features/services/auth.api";
 import { Button } from "../ui/button";
 import Link from "next/link";
 
@@ -12,8 +12,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { data: user, isLoading } = useSession();
-  console.log("from protected route page", user);
+  const { data: user, isLoading } = useGetSessionQuery();
   const router = useRouter();
 
   useEffect(() => {
@@ -48,7 +47,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
           <h1 className="text-2xl lg:text-3xl font-normal mb-2 tracking[2px] text-foreground-secondary">Access Denied</h1>
           <p className="text-foreground-tertiary tracking-[1px]">Please sign in to continue.</p>
         </div>
-        <Button variant={"btn"}>
+        <Button variant={"default"}>
             <Link href={'/auth/sign-in'}> Back to Login Page </Link>
         </Button>
       </div>

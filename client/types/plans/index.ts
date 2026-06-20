@@ -3,6 +3,16 @@ export enum PlanType {
   PRO = 'PAID',
 }
 
+export interface IFeature {
+  id: string;
+  key: string;
+  name: string;
+  description?: string;
+  unit?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface IPlanFeature {
   planId: string;
   featureId: string;

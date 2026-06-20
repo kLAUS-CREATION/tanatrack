@@ -225,6 +225,15 @@ export const membershipApi = apiSlice.injectEndpoints({
           : [{ type: "Membership", id: "MEMBER_LIST" }],
     }),
 
+    // Read-only employee directory — any member may view it.
+    getEmployees: builder.query<IMember[], string>({
+      query: (orgId) => ({
+        url: `/membership/${orgId}/directory`,
+        method: "GET",
+      }),
+      providesTags: [{ type: "Membership", id: "MEMBER_LIST" }],
+    }),
+
     getAssignableLocations: builder.query<IAssignableLocations, string>({
       query: (orgId) => ({
         url: `/membership/${orgId}/locations`,
@@ -306,6 +315,7 @@ export const {
   useUpdateRoleMutation,
   useLeaveOrganizationMutation,
   useGetMembersQuery,
+  useGetEmployeesQuery,
   useGetAssignableLocationsQuery,
   useGetMyAccessQuery,
   useSetMemberRoleMutation,

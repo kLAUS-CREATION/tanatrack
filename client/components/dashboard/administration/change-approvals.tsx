@@ -21,13 +21,16 @@ import {
   ClipboardCheck,
   Loader2,
   History,
-  Search,
   FilterX,
   CheckCircle2,
   XCircle,
   User2,
   CalendarClock,
 } from "lucide-react";
+import {
+  FilterToolbar,
+  type ActiveChip,
+} from "@/components/dashboard/shared/filter-toolbar";
 import {
   ChangeEntity,
   ChangeStatus,
@@ -54,6 +57,12 @@ const ENTITY_OPTIONS: { value: ChangeEntity; label: string }[] = [
 ];
 
 const ALL = "ALL";
+
+const OP_LABEL: Record<string, string> = {
+  CREATE: "Create",
+  UPDATE: "Update",
+  DELETE: "Delete",
+};
 
 interface HistoryFilters {
   search: string;
@@ -295,8 +304,45 @@ function HistoryTab({ reviewed }: { reviewed: IChangeRequest[] }) {
     });
   }, [reviewed, filters]);
 
-  const isFiltered =
-    JSON.stringify(filters) !== JSON.stringify(EMPTY_FILTERS);
+  const chips: ActiveChip[] = [];
+  if (filters.entity !== ALL)
+    chips.push({
+      key: "entity",
+      label:
+        ENTITY_OPTIONS.find((o) => o.value === filters.entity)?.label ?? "Type",
+      onRemove: () => set({ entity: ALL }),
+    });
+  if (filters.operation !== ALL)
+    chips.push({
+      key: "operation",
+      label: OP_LABEL[filters.operation] ?? filters.operation,
+      onRemove: () => set({ operation: ALL }),
+    });
+  if (filters.status !== ALL)
+    chips.push({
+      key: "status",
+      label: filters.status === "APPROVED" ? "Approved" : "Declined",
+      onRemove: () => set({ status: ALL }),
+    });
+  if (filters.reviewer !== ALL)
+    chips.push({
+      key: "reviewer",
+      label:
+        reviewers.find((r) => r.id === filters.reviewer)?.name ?? "Reviewer",
+      onRemove: () => set({ reviewer: ALL }),
+    });
+  if (filters.from)
+    chips.push({
+      key: "from",
+      label: `From ${filters.from}`,
+      onRemove: () => set({ from: "" }),
+    });
+  if (filters.to)
+    chips.push({
+      key: "to",
+      label: `To ${filters.to}`,
+      onRemove: () => set({ to: "" }),
+    });
 
   if (reviewed.length === 0) {
     return (
@@ -313,49 +359,43 @@ function HistoryTab({ reviewed }: { reviewed: IChangeRequest[] }) {
 
   return (
     <div className="space-y-4">
-      {/* Filter bar */}
-      <div className="rounded-sm border bg-muted/20 p-4">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="space-y-1.5 lg:col-span-3">
-            <Label className="text-xs text-muted-foreground">Search</Label>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={filters.search}
-                onChange={(e) => set({ search: e.target.value })}
-                placeholder="Search by name, requester, reviewer or reason…"
-                className="pl-8"
-              />
-            </div>
-          </div>
+      <FilterToolbar
+        search={filters.search}
+        onSearchChange={(v) => set({ search: v })}
+        searchPlaceholder="Search by name, requester, reviewer or reason…"
+        chips={chips}
+        onClearAll={() => setFilters(EMPTY_FILTERS)}
+        resultCount={filtered.length}
+        totalCount={reviewed.length}
+      >
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">Type</Label>
+          <Select
+            value={filters.entity}
+            onValueChange={(v) => set({ entity: v as HistoryFilters["entity"] })}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>All types</SelectItem>
+              {ENTITY_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Type</Label>
-            <Select
-              value={filters.entity}
-              onValueChange={(v) => set({ entity: v as HistoryFilters["entity"] })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL}>All types</SelectItem>
-                {ENTITY_OPTIONS.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>
-                    {o.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
+        <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Action</Label>
             <Select
               value={filters.operation}
               onValueChange={(v) => set({ operation: v })}
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -371,9 +411,11 @@ function HistoryTab({ reviewed }: { reviewed: IChangeRequest[] }) {
             <Label className="text-xs text-muted-foreground">Outcome</Label>
             <Select
               value={filters.status}
-              onValueChange={(v) => set({ status: v as HistoryFilters["status"] })}
+              onValueChange={(v) =>
+                set({ status: v as HistoryFilters["status"] })
+              }
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -383,27 +425,29 @@ function HistoryTab({ reviewed }: { reviewed: IChangeRequest[] }) {
               </SelectContent>
             </Select>
           </div>
+        </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Reviewed by</Label>
-            <Select
-              value={filters.reviewer}
-              onValueChange={(v) => set({ reviewer: v })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL}>Anyone</SelectItem>
-                {reviewers.map((r) => (
-                  <SelectItem key={r.id} value={r.id}>
-                    {r.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">Reviewed by</Label>
+          <Select
+            value={filters.reviewer}
+            onValueChange={(v) => set({ reviewer: v })}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>Anyone</SelectItem>
+              {reviewers.map((r) => (
+                <SelectItem key={r.id} value={r.id}>
+                  {r.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
+        <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">From</Label>
             <Input
@@ -413,7 +457,6 @@ function HistoryTab({ reviewed }: { reviewed: IChangeRequest[] }) {
               onChange={(e) => set({ from: e.target.value })}
             />
           </div>
-
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">To</Label>
             <Input
@@ -424,23 +467,7 @@ function HistoryTab({ reviewed }: { reviewed: IChangeRequest[] }) {
             />
           </div>
         </div>
-
-        <div className="mt-3 flex items-center justify-between">
-          <p className="text-xs text-muted-foreground">
-            Showing {filtered.length} of {reviewed.length}
-          </p>
-          {isFiltered && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground"
-              onClick={() => setFilters(EMPTY_FILTERS)}
-            >
-              <FilterX className="mr-1.5 h-4 w-4" /> Clear filters
-            </Button>
-          )}
-        </div>
-      </div>
+      </FilterToolbar>
 
       {/* Results */}
       {filtered.length === 0 ? (

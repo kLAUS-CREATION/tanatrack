@@ -2,6 +2,7 @@ import { configureStore } from "@reduxjs/toolkit";
 import { setupListeners } from "@reduxjs/toolkit/query";
 import themeSlice from "./slices/theme.slice";
 import { apiSlice } from "./api"; // custom Axios base query file
+import { errorToastMiddleware } from "./error-toast.middleware";
 
 /**
  * We create a makeStore function to ensure that the store is
@@ -24,7 +25,7 @@ export const makeStore = () => {
     middleware: (getDefaultMiddleware) =>
       getDefaultMiddleware({
         serializableCheck: false, // Often useful when handling complex API responses
-      }).concat(apiSlice.middleware),
+      }).concat(apiSlice.middleware, errorToastMiddleware),
   });
 
   // Optional: Enables refetchOnFocus and refetchOnReconnect behaviors

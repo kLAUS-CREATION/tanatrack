@@ -42,6 +42,8 @@ export interface IProduct {
   description?: string | null;
   unit: ProductUnit;
   isActive: boolean;
+  // Perishable products carry an expiry date per purchased batch (FEFO).
+  isPerishable: boolean;
   createdAt: string;
   updatedAt: string;
   variants?: IProductVariant[];
@@ -63,6 +65,7 @@ export interface CreateProductRequest {
   categoryId?: string;
   unit?: ProductUnit;
   isActive?: boolean;
+  isPerishable?: boolean;
   variants?: VariantInput[];
 }
 
@@ -72,6 +75,7 @@ export interface UpdateProductRequest {
   categoryId?: string;
   unit?: ProductUnit;
   isActive?: boolean;
+  isPerishable?: boolean;
 }
 
 // --- product change approval (maker–checker) ---

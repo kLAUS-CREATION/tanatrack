@@ -9,6 +9,10 @@ export interface IPurchaseItem {
   quantity: number;
   unitCost: number;
   lineTotal: number;
+  // Units returned to the supplier so far (caps partial returns).
+  returnedQuantity: number;
+  // Set when the product is perishable; mirrors the received StockBatch.
+  expiryDate?: string | null;
   variant?: IProductVariant;
 }
 
@@ -33,6 +37,8 @@ export interface PurchaseItemInput {
   variantId: string;
   quantity: number;
   unitCost?: number;
+  // ISO date; required by the server when the product is perishable.
+  expiryDate?: string;
 }
 
 // Purchases receive into the org receiving pool (no location); stock is allocated
@@ -42,6 +48,40 @@ export interface CreatePurchaseRequest {
   supplierName?: string;
   reference?: string;
   items: PurchaseItemInput[];
+}
+
+export interface IPurchaseReturnItem {
+  id: string;
+  returnId: string;
+  purchaseItemId: string;
+  variantId: string;
+  quantity: number;
+  unitCost: number;
+  lineTotal: number;
+  purchaseItem?: IPurchaseItem;
+}
+
+export interface IPurchaseReturn {
+  id: string;
+  organizationId: string;
+  purchaseId: string;
+  supplierId?: string | null;
+  supplierName?: string | null;
+  processedBy: string;
+  total: number;
+  reason?: string | null;
+  createdAt: string;
+  items?: IPurchaseReturnItem[];
+}
+
+export interface PurchaseReturnItemInput {
+  purchaseItemId: string;
+  quantity: number;
+}
+
+export interface CreatePurchaseReturnRequest {
+  reason?: string;
+  items: PurchaseReturnItemInput[];
 }
 
 export const purchaseApi = apiSlice.injectEndpoints({
@@ -82,6 +122,40 @@ export const purchaseApi = apiSlice.injectEndpoints({
         { type: "ChangeRequest", id: "LIST" },
       ],
     }),
+
+    getPurchaseReturns: builder.query<
+      IPurchaseReturn[],
+      { orgId: string; purchaseId: string }
+    >({
+      query: ({ orgId, purchaseId }) => ({
+        url: `/org/${orgId}/purchases/${purchaseId}/returns`,
+        method: "GET",
+      }),
+      providesTags: (result, error, { purchaseId }) => [
+        { type: "Purchase", id: `${purchaseId}-returns` },
+      ],
+    }),
+
+    // Returns to supplier apply directly (no maker-checker), reversing stock out
+    // of the receiving pool — so refresh stock, the purchase list and reports.
+    createPurchaseReturn: builder.mutation<
+      IPurchaseReturn,
+      { orgId: string; purchaseId: string; body: CreatePurchaseReturnRequest }
+    >({
+      query: ({ orgId, purchaseId, body }) => ({
+        url: `/org/${orgId}/purchases/${purchaseId}/returns`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: (result, error, { purchaseId }) => [
+        { type: "Purchase", id: "LIST" },
+        { type: "Purchase", id: purchaseId },
+        { type: "Purchase", id: `${purchaseId}-returns` },
+        { type: "StockLevel", id: "LIST" },
+        { type: "StockMovement", id: "LIST" },
+        { type: "Report", id: "OVERVIEW" },
+      ],
+    }),
   }),
 });
 
@@ -89,4 +163,6 @@ export const {
   useGetPurchasesQuery,
   useGetPurchaseQuery,
   useCreatePurchaseMutation,
+  useGetPurchaseReturnsQuery,
+  useCreatePurchaseReturnMutation,
 } = purchaseApi;

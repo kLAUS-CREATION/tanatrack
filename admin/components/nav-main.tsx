@@ -12,11 +12,10 @@ import {
 
 export function NavMain({ items }: { items: { title: string, link: string }[] }) {
   const pathname = usePathname()
-  const orgId = pathname.split("/")[3];
 
   return (
     <SidebarGroup className="px-2">
-      <SidebarMenu className="gap-0.5"> {/* Very tight gap for professional density */}
+      <SidebarMenu className="gap-0.5">
         {items.map((item) => {
           const isActive = pathname === item.link
 
@@ -26,7 +25,7 @@ export function NavMain({ items }: { items: { title: string, link: string }[] })
                 asChild
                 isActive={isActive}
                 className={cn(
-                  "relative h-8 w-full justify-start rounded-md px-3 transition-colors",
+                  "relative h-8 w-full justify-start px-3 transition-colors",
                   "text-xs font-medium uppercase tracking-wider",
                   isActive
                     ? "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
@@ -35,9 +34,8 @@ export function NavMain({ items }: { items: { title: string, link: string }[] })
               >
                 <Link href={item.link}>
                   <span>{item.title}</span>
-                  {/* Subtle vertical indicator for the active item */}
                   {isActive && (
-                    <div className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-primary rounded-r-full" />
+                    <div className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-primary" />
                   )}
                 </Link>
               </SidebarMenuButton>

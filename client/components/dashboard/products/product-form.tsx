@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Combobox } from "@/components/ui/combobox";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import {
   IProduct,
@@ -53,6 +54,7 @@ const productSchema = z.object({
   description: z.string().optional(),
   categoryId: z.string().optional(),
   unit: z.nativeEnum(ProductUnit),
+  isPerishable: z.boolean().optional(),
   variants: z.array(variantSchema).min(1, "Add at least one variant"),
 });
 
@@ -87,6 +89,7 @@ export function ProductForm({
       description: "",
       categoryId: NONE,
       unit: ProductUnit.PIECE,
+      isPerishable: false,
       variants: [{ sku: "", name: "", barcode: "", sellingPrice: 0 }],
     },
   });
@@ -103,6 +106,7 @@ export function ProductForm({
         description: initialData.description || "",
         categoryId: initialData.categoryId || NONE,
         unit: initialData.unit,
+        isPerishable: initialData.isPerishable ?? false,
         variants:
           initialData.variants?.length
             ? initialData.variants.map((v) => ({
@@ -119,6 +123,7 @@ export function ProductForm({
         description: "",
         categoryId: NONE,
         unit: ProductUnit.PIECE,
+        isPerishable: false,
         variants: [{ sku: "", name: "", barcode: "", sellingPrice: 0 }],
       });
     }
@@ -133,6 +138,7 @@ export function ProductForm({
           ? values.categoryId
           : undefined,
       unit: values.unit,
+      isPerishable: values.isPerishable ?? false,
       // Variants only sent on create; edit updates base fields only.
       variants: isEdit
         ? undefined
@@ -233,6 +239,28 @@ export function ProductForm({
                     <Input placeholder="Optional" {...field} />
                   </FormControl>
                   <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="isPerishable"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start gap-3 rounded-sm border border-border p-3">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                  <div className="space-y-0.5 leading-none">
+                    <FormLabel>Perishable</FormLabel>
+                    <p className="text-xs text-muted-foreground">
+                      Track an expiry date per received batch. Stock is sold
+                      soonest-expiry-first and expired units cannot be sold.
+                    </p>
+                  </div>
                 </FormItem>
               )}
             />

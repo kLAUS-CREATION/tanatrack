@@ -17,12 +17,13 @@ import { Combobox } from "@/components/ui/combobox";
 import { IProduct } from "@/lib/features/services/product.api";
 import { IBranch } from "@/lib/features/services/branch.api";
 import { IWarehouse } from "@/lib/features/services/warehouse.api";
-import { useTransferStockMutation } from "@/lib/features/services/inventory.api";
+import { useCreateTransferMutation } from "@/lib/features/services/allocation.api";
+import { isPendingChange } from "@/lib/features/services/change-request.api";
 import {
   LocationCombobox,
   decodeLocation,
   variantOptions,
-} from "./stock-op-dialog";
+} from "./stock-fields";
 
 interface TransferDialogProps {
   isOpen: boolean;
@@ -31,6 +32,8 @@ interface TransferDialogProps {
   products: IProduct[];
   branches: IBranch[];
   warehouses: IWarehouse[];
+  /** When the actor isn't an approver, the move is queued for approval. */
+  needsApproval?: boolean;
 }
 
 export function TransferDialog({
@@ -40,13 +43,14 @@ export function TransferDialog({
   products,
   branches,
   warehouses,
+  needsApproval,
 }: TransferDialogProps) {
   const [variantId, setVariantId] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [quantity, setQuantity] = useState("");
 
-  const [transferStock, { isLoading }] = useTransferStockMutation();
+  const [transferStock, { isLoading }] = useCreateTransferMutation();
 
   useEffect(() => {
     if (isOpen) {
@@ -66,17 +70,25 @@ export function TransferDialog({
       toast.error("Source and destination must differ");
       return;
     }
+    const src = decodeLocation(from);
+    const dest = decodeLocation(to);
     try {
-      await transferStock({
+      const res = await transferStock({
         orgId,
         body: {
           variantId,
           quantity: Number(quantity),
-          from: decodeLocation(from),
-          to: decodeLocation(to),
+          fromBranchId: src.branchId,
+          fromWarehouseId: src.warehouseId,
+          toBranchId: dest.branchId,
+          toWarehouseId: dest.warehouseId,
         },
       }).unwrap();
-      toast.success("Stock transferred");
+      toast.success(
+        isPendingChange(res)
+          ? "Transfer submitted for approval"
+          : "Stock transferred",
+      );
       onClose();
     } catch (error: any) {
       toast.error(error?.data?.message || "Transfer failed");
@@ -143,7 +155,7 @@ export function TransferDialog({
           </Button>
           <Button onClick={handleSubmit} disabled={isLoading}>
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Transfer
+            {needsApproval ? "Submit for approval" : "Transfer"}
           </Button>
         </DialogFooter>
       </DialogContent>

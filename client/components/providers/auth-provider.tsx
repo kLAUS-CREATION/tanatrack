@@ -3,12 +3,13 @@
 import * as React from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { useGetSessionQuery } from "@/lib/features/services/auth.api"
-import { Session } from "@/lib/auth-client"
+
+type SessionQueryResult = ReturnType<typeof useGetSessionQuery>
 
 type AuthContextType = {
-    session: ReturnType<Session>["data"]
+    session: SessionQueryResult["data"]
     isLoading: boolean
-    error: ReturnType<Session>["error"]
+    error: SessionQueryResult["error"]
 }
 
 const AuthContext = React.createContext<AuthContextType | undefined>(undefined)

@@ -23,7 +23,7 @@ import {
   LocationCombobox,
   decodeLocation,
   variantOptions,
-} from "./stock-op-dialog";
+} from "./stock-fields";
 
 interface AllocateDialogProps {
   isOpen: boolean;

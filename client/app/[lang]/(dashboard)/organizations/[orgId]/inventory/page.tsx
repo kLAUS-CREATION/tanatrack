@@ -1,75 +1,83 @@
 "use client";
 
-import React, { useState } from "react";
-import { useParams } from "next/navigation";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import React, { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { TableSkeleton } from "@/components/dashboard/shared/table-skeleton";
-import { EmptyState } from "@/components/dashboard/shared/empty-state";
-import { Boxes, PackagePlus, SlidersHorizontal, ArrowLeftRight, PackageCheck } from "lucide-react";
+import { ArrowLeftRight, PackageCheck, AlertTriangle } from "lucide-react";
 import { useOrgAccess } from "@/lib/hooks/use-org-access";
 import { useGetProductsQuery } from "@/lib/features/services/product.api";
 import { useGetBranchesQuery } from "@/lib/features/services/branch.api";
 import { useGetWarehousesQuery } from "@/lib/features/services/warehouse.api";
 import {
-  IStockLevel,
-  IStockMovement,
   useGetGlobalStockQuery,
   useGetMovementsQuery,
+  useGetLowStockQuery,
+  useGetBatchesQuery,
 } from "@/lib/features/services/inventory.api";
-import { StockOpDialog } from "@/components/dashboard/inventory/stock-op-dialog";
 import { TransferDialog } from "@/components/dashboard/inventory/transfer-dialog";
 import { AllocateDialog } from "@/components/dashboard/inventory/allocate-dialog";
+import { StockLevelsTab } from "@/components/dashboard/inventory/stock-levels-tab";
+import { MovementsTab } from "@/components/dashboard/inventory/movements-tab";
+import { ExpiryTab } from "@/components/dashboard/inventory/expiry-tab";
 
-const INVENTORY_ADJUST = "INVENTORY_ADJUST_STOCK";
-const INVENTORY_PURCHASE = "INVENTORY_PURCHASE_IN";
-const INVENTORY_TRANSFER = "INVENTORY_TRANSFER_STOCK";
+// "See inventory": gates visibility of this page. "Manage inventory": gates the
+// allocate/transfer stock-move actions (maker-checker — queued unless owner/admin).
+const INVENTORY_VIEW = "INVENTORY_VIEW_GLOBAL_STOCK";
 const INVENTORY_MANAGE = "INVENTORY_MANAGE";
-
-function locationName(s: IStockLevel) {
-  if (s.branch?.name) return s.branch.name;
-  if (s.warehouse?.name) return s.warehouse.name;
-  return "Unallocated (Receiving)";
-}
-
-function movementLocation(m: IStockMovement) {
-  const from = m.fromBranch?.name ?? m.fromWarehouse?.name;
-  const to = m.toBranch?.name ?? m.toWarehouse?.name;
-  if (from && to) return `${from} → ${to}`;
-  if (to) return `→ ${to}`;
-  if (from) return `${from} →`;
-  return "—";
-}
 
 export default function InventoryPage() {
   const params = useParams();
+  const router = useRouter();
+  const lang = params.lang as string;
   const orgId = params.orgId as string;
 
-  const { isOwner, canAdminister, permissions } = useOrgAccess(orgId);
-  const can = (p: string) => isOwner || permissions.includes(p);
-  // INVENTORY_MANAGE holders queue allocations; owner/admins apply instantly.
-  const canAllocate = isOwner || canAdminister || permissions.includes(INVENTORY_MANAGE);
-  const allocationNeedsApproval = canAllocate && !isOwner && !canAdminister;
+  const { isOwner, canAdminister, permissions, isLoading: accessLoading } =
+    useOrgAccess(orgId);
+  // "See inventory" gates the whole page. Owner/admin always see it.
+  const canViewInventory =
+    isOwner || canAdminister || permissions.includes(INVENTORY_VIEW);
+  // INVENTORY_MANAGE gates stock moves (allocate pool→location and transfer
+  // location→location). Holders queue a change request; owner/admins apply instantly.
+  const canManageStock =
+    isOwner || canAdminister || permissions.includes(INVENTORY_MANAGE);
+  const moveNeedsApproval = canManageStock && !isOwner && !canAdminister;
 
-  const { data: stock, isLoading } = useGetGlobalStockQuery(orgId);
-  const { data: movements } = useGetMovementsQuery({ orgId });
-  const { data: products } = useGetProductsQuery(orgId);
-  const { data: branches } = useGetBranchesQuery(orgId);
-  const { data: warehouses } = useGetWarehousesQuery(orgId);
+  // Redirect members without "see inventory" away from the page (UX-only; the
+  // backend independently enforces every read/write).
+  useEffect(() => {
+    if (!accessLoading && !canViewInventory) {
+      router.replace(`/${lang}/organizations/${orgId}`);
+    }
+  }, [accessLoading, canViewInventory, router, lang, orgId]);
 
-  const [purchaseOpen, setPurchaseOpen] = useState(false);
-  const [adjustOpen, setAdjustOpen] = useState(false);
+  const { data: stock, isLoading } = useGetGlobalStockQuery(orgId, {
+    skip: !canViewInventory,
+  });
+  const { data: movements } = useGetMovementsQuery(
+    { orgId },
+    { skip: !canViewInventory },
+  );
+  const { data: products } = useGetProductsQuery(orgId, {
+    skip: !canViewInventory,
+  });
+  const { data: branches } = useGetBranchesQuery(orgId, {
+    skip: !canViewInventory,
+  });
+  const { data: warehouses } = useGetWarehousesQuery(orgId, {
+    skip: !canViewInventory,
+  });
+  const { data: lowStock } = useGetLowStockQuery(orgId, {
+    skip: !canViewInventory,
+  });
+  const { data: batches } = useGetBatchesQuery(orgId, {
+    skip: !canViewInventory,
+  });
+
   const [transferOpen, setTransferOpen] = useState(false);
   const [allocateOpen, setAllocateOpen] = useState(false);
+
+  if (accessLoading || !canViewInventory) return null;
 
   return (
     <div className="w-full mx-auto min-h-full">
@@ -83,7 +91,7 @@ export default function InventoryPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          {canAllocate && (
+          {canManageStock && (
             <Button
               variant="outline"
               className="gap-2 rounded-lg transition-all hover:bg-primary/5 hover:text-primary hover:border-primary/30"
@@ -92,16 +100,7 @@ export default function InventoryPage() {
               <PackageCheck className="h-4 w-4" /> Allocate
             </Button>
           )}
-          {can(INVENTORY_PURCHASE) && (
-            <Button
-              variant="outline"
-              className="gap-2 rounded-lg transition-all hover:bg-primary/5 hover:text-primary hover:border-primary/30"
-              onClick={() => setPurchaseOpen(true)}
-            >
-              <PackagePlus className="h-4 w-4" /> Receive
-            </Button>
-          )}
-          {can(INVENTORY_TRANSFER) && (
+          {canManageStock && (
             <Button
               variant="outline"
               className="gap-2 rounded-lg transition-all hover:bg-primary/5 hover:text-primary hover:border-primary/30"
@@ -110,135 +109,62 @@ export default function InventoryPage() {
               <ArrowLeftRight className="h-4 w-4" /> Transfer
             </Button>
           )}
-          {can(INVENTORY_ADJUST) && (
-            <Button
-              className="gap-2 rounded-lg shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/30"
-              onClick={() => setAdjustOpen(true)}
-            >
-              <SlidersHorizontal className="h-4 w-4" /> Adjust
-            </Button>
-          )}
         </div>
       </div>
+
+      {lowStock && lowStock.length > 0 && (
+        <div className="mb-6 flex items-start gap-3 rounded-sm border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+          <div className="space-y-1">
+            <p className="font-medium text-foreground">
+              {lowStock.length} item{lowStock.length > 1 ? "s" : ""} at or below
+              reorder point
+            </p>
+            <p className="text-muted-foreground">
+              {lowStock
+                .slice(0, 4)
+                .map(
+                  (l) =>
+                    `${l.variant?.product?.name ?? "Item"} · ${l.variant?.name ?? ""} (${
+                      l.quantity
+                    } left${
+                      l.branch?.name || l.warehouse?.name
+                        ? ` @ ${l.branch?.name ?? l.warehouse?.name}`
+                        : ""
+                    })`,
+                )
+                .join(", ")}
+              {lowStock.length > 4 && ` +${lowStock.length - 4} more`}
+            </p>
+          </div>
+        </div>
+      )}
 
       <Tabs defaultValue="stock" className="animate-in fade-in slide-in-from-bottom-2 duration-500">
         <TabsList className="bg-muted/50 p-1 rounded-xl">
           <TabsTrigger value="stock" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">Stock Levels</TabsTrigger>
           <TabsTrigger value="movements" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">Movements</TabsTrigger>
+          <TabsTrigger value="expiry" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">Expiry</TabsTrigger>
         </TabsList>
 
         <TabsContent value="stock" className="mt-6">
-          {isLoading ? (
-            <TableSkeleton cols={4} />
-          ) : !stock || stock.length === 0 ? (
-            <EmptyState
-              icon={Boxes}
-              title="No stock yet"
-              description="Receive stock into a location to get started with your inventory management."
-            />
-          ) : (
-            <div className="rounded-2xl border border-border/50 bg-card shadow-sm overflow-hidden animate-in fade-in duration-500">
-              <Table>
-
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Product</TableHead>
-                    <TableHead>Variant</TableHead>
-                    <TableHead>Location</TableHead>
-                    <TableHead className="text-right">Quantity</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {stock.map((s) => {
-                    const low =
-                      s.reorderPoint != null && s.quantity <= s.reorderPoint;
-                    return (
-                      <TableRow key={s.id}>
-                        <TableCell className="font-medium">
-                          {s.variant?.product?.name ?? "—"}
-                        </TableCell>
-                        <TableCell>
-                          {s.variant?.name}{" "}
-                          <span className="text-xs text-muted-foreground font-mono">
-                            {s.variant?.sku}
-                          </span>
-                        </TableCell>
-                        <TableCell>{locationName(s)}</TableCell>
-                        <TableCell className="text-right">
-                          <Badge variant={low ? "destructive" : "secondary"}>
-                            {s.quantity}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+          <StockLevelsTab stock={stock ?? []} isLoading={isLoading} />
         </TabsContent>
 
         <TabsContent value="movements" className="mt-6">
-          {!movements || movements.length === 0 ? (
-            <EmptyState
-              icon={ArrowLeftRight}
-              title="No movements yet"
-              description="Stock changes will appear here as a comprehensive audit trail."
-            />
-          ) : (
-            <div className="rounded-2xl border border-border/50 bg-card shadow-sm overflow-hidden animate-in fade-in duration-500">
-              <Table>
+          <MovementsTab movements={movements ?? []} />
+        </TabsContent>
 
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>When</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Product</TableHead>
-                    <TableHead>Location</TableHead>
-                    <TableHead className="text-right">Qty</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {movements.map((m) => (
-                    <TableRow key={m.id}>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {new Date(m.createdAt).toLocaleString()}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{m.type}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        {m.variant?.product?.name} — {m.variant?.name}
-                      </TableCell>
-                      <TableCell>{movementLocation(m)}</TableCell>
-                      <TableCell className="text-right">{m.quantity}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+        <TabsContent value="expiry" className="mt-6">
+          <ExpiryTab
+            batches={batches ?? []}
+            orgId={orgId}
+            canManageStock={canManageStock}
+            needsApproval={moveNeedsApproval}
+          />
         </TabsContent>
       </Tabs>
 
-      <StockOpDialog
-        mode="purchase"
-        isOpen={purchaseOpen}
-        onClose={() => setPurchaseOpen(false)}
-        orgId={orgId}
-        products={products ?? []}
-        branches={branches ?? []}
-        warehouses={warehouses ?? []}
-      />
-      <StockOpDialog
-        mode="adjust"
-        isOpen={adjustOpen}
-        onClose={() => setAdjustOpen(false)}
-        orgId={orgId}
-        products={products ?? []}
-        branches={branches ?? []}
-        warehouses={warehouses ?? []}
-      />
       <TransferDialog
         isOpen={transferOpen}
         onClose={() => setTransferOpen(false)}
@@ -246,6 +172,7 @@ export default function InventoryPage() {
         products={products ?? []}
         branches={branches ?? []}
         warehouses={warehouses ?? []}
+        needsApproval={moveNeedsApproval}
       />
       <AllocateDialog
         isOpen={allocateOpen}
@@ -254,7 +181,7 @@ export default function InventoryPage() {
         products={products ?? []}
         branches={branches ?? []}
         warehouses={warehouses ?? []}
-        needsApproval={allocationNeedsApproval}
+        needsApproval={moveNeedsApproval}
       />
     </div>
   );

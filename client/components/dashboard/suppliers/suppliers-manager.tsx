@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -13,10 +13,20 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { PageShell } from "@/components/dashboard/shared/page-shell";
 import { EmptyState } from "@/components/dashboard/shared/empty-state";
-import { Truck, Plus, Edit, Trash2, Mail, Phone, Clock } from "lucide-react";
+import { FilterToolbar, type ActiveChip } from "@/components/dashboard/shared/filter-toolbar";
+import { TablePagination } from "@/components/dashboard/shared/table-pagination";
+import { Truck, Plus, Edit, Trash2, Mail, Phone, Clock, FilterX } from "lucide-react";
 import { useOrgAccess } from "@/lib/hooks/use-org-access";
 import { isPendingChange } from "@/lib/features/services/change-request.api";
 import {
@@ -30,6 +40,9 @@ import {
 import { SupplierForm } from "@/components/dashboard/suppliers/supplier-form";
 
 const SUPPLIERS_MANAGE = "SUPPLIERS_MANAGE";
+
+const ALL = "__all__";
+type StatusFilter = typeof ALL | "active" | "inactive";
 
 export function SuppliersManager() {
   const params = useParams();
@@ -50,6 +63,48 @@ export function SuppliersManager() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editing, setEditing] = useState<ISupplier | null>(null);
   const [ConfirmDialog, confirm] = useConfirm();
+
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState<StatusFilter>(ALL);
+
+  const PAGE_SIZE = 25;
+  const [page, setPage] = useState(1);
+  React.useEffect(() => {
+    setPage(1);
+  }, [search, status]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return (suppliers ?? []).filter((s) => {
+      if (status !== ALL && s.isActive !== (status === "active")) return false;
+      if (q) {
+        const hay = [s.name, s.contactPerson, s.phone, s.email]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [suppliers, search, status]);
+
+  const paged = useMemo(
+    () => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filtered, page],
+  );
+
+  const chips: ActiveChip[] = [];
+  if (status !== ALL)
+    chips.push({
+      key: "status",
+      label: status === "active" ? "Active" : "Inactive",
+      onRemove: () => setStatus(ALL),
+    });
+
+  const clearAll = () => {
+    setSearch("");
+    setStatus(ALL);
+  };
 
   const handleSubmit = async (data: CreateSupplierRequest) => {
     try {
@@ -141,20 +196,59 @@ export function SuppliersManager() {
           />
         }
       >
-        <div className="rounded-sm border border-border bg-background2">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Contact</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Status</TableHead>
-                {canManage && <TableHead className="text-right">Actions</TableHead>}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {suppliers?.map((s) => (
+        <div className="space-y-4">
+          <FilterToolbar
+            search={search}
+            onSearchChange={setSearch}
+            searchPlaceholder="Search by name, contact, phone or email…"
+            chips={chips}
+            onClearAll={clearAll}
+            resultCount={filtered.length}
+            totalCount={suppliers?.length ?? 0}
+          >
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Status</Label>
+              <Select
+                value={status}
+                onValueChange={(v) => setStatus(v as StatusFilter)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL}>Any status</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </FilterToolbar>
+
+          {filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 border border-dashed rounded-sm text-center">
+              <FilterX className="h-8 w-8 mb-3 text-muted-foreground/60" />
+              <p className="font-medium">No matches</p>
+              <p className="text-sm text-muted-foreground">
+                Try adjusting or clearing your filters.
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-sm border border-border bg-background2">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Contact</TableHead>
+                    <TableHead>Phone</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Status</TableHead>
+                    {canManage && (
+                      <TableHead className="text-right">Actions</TableHead>
+                    )}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paged.map((s) => (
                 <TableRow key={s.id}>
                   <TableCell className="font-medium">{s.name}</TableCell>
                   <TableCell>{s.contactPerson || "—"}</TableCell>
@@ -211,8 +305,16 @@ export function SuppliersManager() {
                   )}
                 </TableRow>
               ))}
-            </TableBody>
-          </Table>
+                </TableBody>
+              </Table>
+              <TablePagination
+                page={page}
+                pageSize={PAGE_SIZE}
+                total={filtered.length}
+                onPageChange={setPage}
+              />
+            </div>
+          )}
         </div>
       </PageShell>
 

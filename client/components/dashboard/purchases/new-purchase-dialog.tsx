@@ -15,7 +15,7 @@ import { Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatMoney } from "@/lib/utils";
 import { Combobox } from "@/components/ui/combobox";
-import { variantOptions } from "@/components/dashboard/inventory/stock-op-dialog";
+import { variantOptions } from "@/components/dashboard/inventory/stock-fields";
 import { IProduct } from "@/lib/features/services/product.api";
 import { ISupplier } from "@/lib/features/services/supplier.api";
 import {
@@ -33,6 +33,7 @@ interface Line {
   variantId: string;
   quantity: number;
   unitCost: number; // major units in the form
+  expiryDate?: string; // ISO yyyy-mm-dd; required for perishable variants
 }
 
 interface NewPurchaseDialogProps {
@@ -69,14 +70,18 @@ export function NewPurchaseDialog({
     }
   }, [isOpen]);
 
-  // variantId -> { label, cost(major) }
+  // variantId -> { label, cost(major), perishable }
   const variantMap = useMemo(() => {
-    const map = new Map<string, { label: string; cost: number }>();
+    const map = new Map<
+      string,
+      { label: string; cost: number; perishable: boolean }
+    >();
     products.forEach((p) =>
       (p.variants ?? []).forEach((v) =>
         map.set(v.id, {
           label: `${p.name} — ${v.name} (${v.sku})`,
           cost: v.costPrice / 100,
+          perishable: p.isPerishable,
         }),
       ),
     );
@@ -110,17 +115,28 @@ export function NewPurchaseDialog({
   };
 
   const handleSubmit = async () => {
-    const items: PurchaseItemInput[] = lines
-      .filter((l) => l.variantId && l.quantity > 0)
-      .map((l) => ({
-        variantId: l.variantId,
-        quantity: l.quantity,
-        unitCost: toMinor(l.unitCost || 0),
-      }));
-    if (items.length === 0) {
+    const validLines = lines.filter((l) => l.variantId && l.quantity > 0);
+    if (validLines.length === 0) {
       toast.error("Add at least one item");
       return;
     }
+    // Perishable items must carry an expiry date (the server rejects otherwise).
+    const missingExpiry = validLines.some(
+      (l) => variantMap.get(l.variantId)?.perishable && !l.expiryDate,
+    );
+    if (missingExpiry) {
+      toast.error("Set an expiry date for each perishable item");
+      return;
+    }
+    const items: PurchaseItemInput[] = validLines.map((l) => ({
+      variantId: l.variantId,
+      quantity: l.quantity,
+      unitCost: toMinor(l.unitCost || 0),
+      expiryDate:
+        variantMap.get(l.variantId)?.perishable && l.expiryDate
+          ? new Date(l.expiryDate).toISOString()
+          : undefined,
+    }));
     try {
       const res = await createPurchase({
         orgId,
@@ -200,62 +216,83 @@ export function NewPurchaseDialog({
               <span className="col-span-2 text-right">Line</span>
             </div>
 
-            {lines.map((line, idx) => (
-              <div
-                key={idx}
-                className="grid grid-cols-12 gap-2 items-center rounded-sm border border-border p-2"
-              >
-                <div className="col-span-6">
-                  <Combobox
-                    options={variantOpts}
-                    value={line.variantId}
-                    onChange={(v) => pickVariant(idx, v)}
-                    placeholder="Select product"
-                    searchPlaceholder="Search products…"
-                    emptyText="No products found."
-                  />
-                </div>
-                <div className="col-span-2">
-                  <Input
-                    type="number"
-                    min={1}
-                    value={line.quantity}
-                    onChange={(e) =>
-                      updateLine(idx, { quantity: Number(e.target.value) })
-                    }
-                  />
-                </div>
-                <div className="col-span-2">
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min={0}
-                    value={line.unitCost}
-                    onChange={(e) =>
-                      updateLine(idx, { unitCost: Number(e.target.value) })
-                    }
-                  />
-                </div>
-                <div className="col-span-1 text-right text-sm">
-                  {formatMoney(toMinor(line.unitCost * (line.quantity || 0)))}
-                </div>
-                <div className="col-span-1 flex justify-end">
-                  {lines.length > 1 && (
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      className="text-destructive h-7 w-7"
-                      onClick={() =>
-                        setLines((prev) => prev.filter((_, i) => i !== idx))
-                      }
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+            {lines.map((line, idx) => {
+              const isPerishable = !!variantMap.get(line.variantId)?.perishable;
+              return (
+                <div
+                  key={idx}
+                  className="space-y-2 rounded-sm border border-border p-2"
+                >
+                  <div className="grid grid-cols-12 gap-2 items-center">
+                    <div className="col-span-6">
+                      <Combobox
+                        options={variantOpts}
+                        value={line.variantId}
+                        onChange={(v) => pickVariant(idx, v)}
+                        placeholder="Select product"
+                        searchPlaceholder="Search products…"
+                        emptyText="No products found."
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Input
+                        type="number"
+                        min={1}
+                        value={line.quantity}
+                        onChange={(e) =>
+                          updateLine(idx, { quantity: Number(e.target.value) })
+                        }
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min={0}
+                        value={line.unitCost}
+                        onChange={(e) =>
+                          updateLine(idx, { unitCost: Number(e.target.value) })
+                        }
+                      />
+                    </div>
+                    <div className="col-span-1 text-right text-sm">
+                      {formatMoney(toMinor(line.unitCost * (line.quantity || 0)))}
+                    </div>
+                    <div className="col-span-1 flex justify-end">
+                      {lines.length > 1 && (
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="text-destructive h-7 w-7"
+                          onClick={() =>
+                            setLines((prev) => prev.filter((_, i) => i !== idx))
+                          }
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  {isPerishable && (
+                    <div className="flex items-center gap-2 pl-1">
+                      <Label className="text-xs text-muted-foreground whitespace-nowrap">
+                        Expiry date
+                      </Label>
+                      <Input
+                        type="date"
+                        className="h-8 max-w-[200px]"
+                        value={line.expiryDate ?? ""}
+                        onChange={(e) =>
+                          updateLine(idx, { expiryDate: e.target.value })
+                        }
+                      />
+                    </div>
                   )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className="flex items-center justify-between border-t border-border pt-3">

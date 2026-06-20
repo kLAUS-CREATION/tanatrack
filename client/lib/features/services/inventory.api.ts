@@ -4,8 +4,11 @@ import type { IProductVariant } from "./product.api";
 export enum MovementType {
   PURCHASE_IN = "PURCHASE_IN",
   SALE_OUT = "SALE_OUT",
+  SALE_RETURN = "SALE_RETURN",
+  PURCHASE_RETURN = "PURCHASE_RETURN",
   TRANSFER = "TRANSFER",
   ADJUSTMENT = "ADJUSTMENT",
+  EXPIRY_WRITE_OFF = "EXPIRY_WRITE_OFF",
 }
 
 export interface IStockLevel {
@@ -40,33 +43,25 @@ export interface IStockMovement {
   toWarehouse?: { id: string; name: string } | null;
 }
 
+// A dated lot of a perishable variant at one location (branch / warehouse /
+// receiving pool when both are null). Drives the inventory Expiry view.
+export interface IStockBatch {
+  id: string;
+  variantId: string;
+  branchId?: string | null;
+  warehouseId?: string | null;
+  quantity: number;
+  expiryDate: string;
+  createdAt: string;
+  variant?: IProductVariant & { product?: { id: string; name: string } };
+  branch?: { id: string; name: string } | null;
+  warehouse?: { id: string; name: string } | null;
+}
+
 // Exactly one of branchId / warehouseId
 export interface LocationInput {
   branchId?: string;
   warehouseId?: string;
-}
-
-export interface PurchaseInRequest extends LocationInput {
-  variantId: string;
-  quantity: number;
-  reason?: string;
-  reference?: string;
-}
-
-export interface AdjustStockRequest extends LocationInput {
-  variantId: string;
-  quantity: number; // absolute target
-  reorderPoint?: number;
-  reason?: string;
-}
-
-export interface TransferStockRequest {
-  variantId: string;
-  quantity: number;
-  from: LocationInput;
-  to: LocationInput;
-  reason?: string;
-  reference?: string;
 }
 
 export const inventoryApi = apiSlice.injectEndpoints({
@@ -100,49 +95,21 @@ export const inventoryApi = apiSlice.injectEndpoints({
       providesTags: [{ type: "StockMovement", id: "LIST" }],
     }),
 
-    purchaseIn: builder.mutation<
-      IStockMovement,
-      { orgId: string; body: PurchaseInRequest }
-    >({
-      query: ({ orgId, body }) => ({
-        url: `/org/${orgId}/inventory/purchase-in`,
-        method: "POST",
-        body,
+    getLowStock: builder.query<IStockLevel[], string>({
+      query: (orgId) => ({
+        url: `/org/${orgId}/inventory/low-stock`,
+        method: "GET",
       }),
-      invalidatesTags: [
-        { type: "StockLevel", id: "LIST" },
-        { type: "StockMovement", id: "LIST" },
-      ],
+      providesTags: [{ type: "StockLevel", id: "LIST" }],
     }),
 
-    adjustStock: builder.mutation<
-      IStockMovement,
-      { orgId: string; body: AdjustStockRequest }
-    >({
-      query: ({ orgId, body }) => ({
-        url: `/org/${orgId}/inventory/adjust`,
-        method: "POST",
-        body,
+    // Dated expiry batches for perishable stock (pool + every location).
+    getBatches: builder.query<IStockBatch[], string>({
+      query: (orgId) => ({
+        url: `/org/${orgId}/inventory/batches`,
+        method: "GET",
       }),
-      invalidatesTags: [
-        { type: "StockLevel", id: "LIST" },
-        { type: "StockMovement", id: "LIST" },
-      ],
-    }),
-
-    transferStock: builder.mutation<
-      IStockMovement,
-      { orgId: string; body: TransferStockRequest }
-    >({
-      query: ({ orgId, body }) => ({
-        url: `/org/${orgId}/inventory/transfer`,
-        method: "POST",
-        body,
-      }),
-      invalidatesTags: [
-        { type: "StockLevel", id: "LIST" },
-        { type: "StockMovement", id: "LIST" },
-      ],
+      providesTags: [{ type: "StockBatch", id: "LIST" }],
     }),
   }),
 });
@@ -151,7 +118,6 @@ export const {
   useGetGlobalStockQuery,
   useGetLocationStockQuery,
   useGetMovementsQuery,
-  usePurchaseInMutation,
-  useAdjustStockMutation,
-  useTransferStockMutation,
+  useGetLowStockQuery,
+  useGetBatchesQuery,
 } = inventoryApi;
