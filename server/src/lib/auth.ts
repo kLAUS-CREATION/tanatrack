@@ -6,6 +6,7 @@ import { emailOTP, admin } from 'better-auth/plugins';
 import { sendEmail } from './mail';
 import { getOtpEmailTemplate } from 'src/constants/email-templates.constant';
 import { prisma } from './prisma';
+import { corsOrigins } from 'src/config/cors';
 
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -13,9 +14,21 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: 'postgresql',
   }),
-  trustedOrigins: isProd
-    ? ['https://tana-track.vercel.app']
-    : ['http://localhost:3000', 'http://localhost:3001'],
+  // localhost + production FRONTEND_URL, read from env via corsOrigins().
+  trustedOrigins: corsOrigins(),
+  // In production the frontend (Vercel) and backend (Render) are different
+  // sites, so the session cookie must be SameSite=None; Secure or the browser
+  // won't send it on cross-site REST calls OR the socket.io handshake. In dev
+  // both run on localhost (same-site) so we keep better-auth's Lax defaults.
+  ...(isProd && {
+    advanced: {
+      useSecureCookies: true,
+      defaultCookieAttributes: {
+        sameSite: 'none',
+        secure: true,
+      },
+    },
+  }),
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,

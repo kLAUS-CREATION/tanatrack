@@ -514,7 +514,7 @@ function HistoryRow({ req }: { req: IChangeRequest }) {
               {actorName(req.requestedByUser)}
             </span>
             <span aria-hidden>·</span>
-            <span className="inline-flex items-center gap-1">
+            <span className="inline-flex items-center gap-1"
               <CalendarClock className="h-3 w-3" />
               {req.reviewedAt
                 ? new Date(req.reviewedAt).toLocaleString()

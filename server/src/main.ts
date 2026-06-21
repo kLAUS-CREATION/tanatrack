@@ -1,6 +1,7 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { corsOrigins } from './config/cors';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -17,12 +18,10 @@ async function bootstrap() {
     }),
   );
 
+  // Allowed origins (localhost + production FRONTEND_URL) are env-driven via
+  // corsOrigins(), so the deployed Vercel frontend is configured, not hardcoded.
   app.enableCors({
-    origin: [
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'http://localhost:5500',
-    ],
+    origin: corsOrigins(),
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization', 'Origin'],
