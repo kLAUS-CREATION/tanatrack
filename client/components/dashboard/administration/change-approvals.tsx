@@ -493,7 +493,7 @@ function HistoryRow({ req }: { req: IChangeRequest }) {
   const Icon = changeEntityIcon(req.entity);
   const approved = req.status === "APPROVED";
   return (
-    <div className="flex flex-col gap-3 rounded-sm border bg-background px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 rounded-sm border border-primary/20 dark:border-primary/10 bg-background px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-start gap-3 min-w-0">
         <div className="h-9 w-9 shrink-0 rounded-sm border flex items-center justify-center text-muted-foreground">
           <Icon className="h-4 w-4" />
