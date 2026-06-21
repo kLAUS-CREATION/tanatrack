@@ -24,6 +24,8 @@ model User {
   accounts      Account[]
   memberships   Membership[]
   sessions      Session[]
+  notifications Notification[]
+  notificationPrefs NotificationPreference?
 
   @@map("user")
 }
@@ -110,6 +112,7 @@ model Organization {
   suppliers         Supplier[]
 
   changeRequests ChangeRequest[]
+  notifications  Notification[]
 
   @@map("organization")
 }
@@ -967,4 +970,59 @@ model ChangeRequest {
   @@index([organizationId, status])
   @@index([requestedBy])
   @@map("change_request")
+}
+
+// ============================================================
+//  NOTIFICATIONS
+// ============================================================
+
+enum NotificationType {
+  APPROVAL_REQUESTED // a change request was queued — sent to approvers
+  APPROVAL_APPROVED // a request you made was approved — sent to the maker
+  APPROVAL_REJECTED // a request you made was rejected — sent to the maker
+  LOW_STOCK // a variant fell to/below its reorder point
+  SALE_RECORDED // a sale was recorded at a branch
+  MEMBER_JOINED // someone accepted an invite and joined the org
+  ROLE_CHANGED // a member's org/location role was changed
+}
+
+// One row per recipient per event (fan-out happens in NotificationsService).
+// userId/actorId are raw user ids (no FK on actor), matching the ChangeRequest
+// and StockMovement ledger convention; actor display info is resolved at push time.
+model Notification {
+  id             String           @id @default(cuid())
+  organizationId String
+  userId         String // recipient
+  actorId        String? // who caused it
+  type           NotificationType
+  title          String
+  body           String?
+  entityType     String? // "CHANGE_REQUEST" | "SALE" | "STOCK_LEVEL" | "MEMBERSHIP"
+  entityId       String?
+  actionUrl      String?
+  metadata       Json?
+  isRead         Boolean          @default(false)
+  readAt         DateTime?
+  createdAt      DateTime         @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+  @@map("notification")
+}
+
+// Per-user real-time push toggles. Absent row = all categories enabled.
+model NotificationPreference {
+  id               String  @id @default(cuid())
+  userId           String  @unique
+  pushOnApproval   Boolean @default(true)
+  pushOnLowStock   Boolean @default(true)
+  pushOnSale       Boolean @default(true)
+  pushOnMembership Boolean @default(true)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_preference")
 }
