@@ -11,6 +11,9 @@ import { corsOrigins } from 'src/config/cors';
 const isProd = process.env.NODE_ENV === 'production';
 
 export const auth = betterAuth({
+  // Public https URL of this backend (Render). Needed in production so callbacks,
+  // redirects and Secure cookies are generated against the right origin.
+  baseURL: process.env.BETTER_AUTH_URL,
   database: prismaAdapter(prisma, {
     provider: 'postgresql',
   }),
