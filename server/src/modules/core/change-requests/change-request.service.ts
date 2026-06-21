@@ -5,16 +5,42 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ChangeEntity, ChangeOp, ChangeStatus, Prisma } from '@prisma/client';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import {
+  ChangeEntity,
+  ChangeOp,
+  ChangeStatus,
+  NotificationType,
+  Prisma,
+} from '@prisma/client';
 import { PrismaService } from 'src/modules/prisma/prisma.service';
 import { MembershipService } from '../membership/membership.service';
 import { ProductsService } from '../products/products.service';
 import { PurchasesService } from '../purchases/purchases.service';
 import { AllocationsService } from '../allocations/allocations.service';
 import { PERMISSIONS } from 'src/constants/permissions.constant';
+import { NotificationEvent } from '../notifications/notification.event';
 
 /** The persisted change-request row shape (raw, before actor enrichment). */
 type ChangeRequestRow = Prisma.ChangeRequestGetPayload<{}>;
+
+/** Human phrasing for a change, e.g. "create a supplier", for notifications. */
+function describeChange(operation: ChangeOp, entity: ChangeEntity): string {
+  const verb = {
+    [ChangeOp.CREATE]: 'create',
+    [ChangeOp.UPDATE]: 'update',
+    [ChangeOp.DELETE]: 'delete',
+  }[operation];
+  const noun = {
+    [ChangeEntity.PRODUCT]: 'a product',
+    [ChangeEntity.VARIANT]: 'a product variant',
+    [ChangeEntity.CATEGORY]: 'a category',
+    [ChangeEntity.SUPPLIER]: 'a supplier',
+    [ChangeEntity.PURCHASE]: 'a purchase',
+    [ChangeEntity.STOCK_MOVE]: 'a stock movement',
+  }[entity];
+  return `${verb} ${noun}`;
+}
 
 /** Where a maker-checker change targets + how to apply it directly. */
 export interface ChangeSpec<R extends { id: string } = { id: string }> {
@@ -45,6 +71,7 @@ export class ChangeRequestService {
     private purchases: PurchasesService,
     @Inject(forwardRef(() => AllocationsService))
     private allocations: AllocationsService,
+    private events: EventEmitter2,
   ) {}
 
   /** True when the actor may apply changes directly (Owner or ADMINISTRATION_ACCESS). */
@@ -70,7 +97,22 @@ export class ChangeRequestService {
       await this.record(orgId, userId, spec, ChangeStatus.APPROVED, row.id);
       return row;
     }
-    return this.record(orgId, userId, spec, ChangeStatus.PENDING);
+    const request = await this.record(orgId, userId, spec, ChangeStatus.PENDING);
+
+    // A non-approver queued a change — notify everyone who can review it.
+    this.emit({
+      organizationId: orgId,
+      type: NotificationType.APPROVAL_REQUESTED,
+      actorId: userId,
+      audience: { permission: PERMISSIONS.ADMINISTRATION_ACCESS },
+      title: 'New approval request',
+      body: `A request to ${describeChange(spec.operation, spec.entity)} is awaiting your review.`,
+      entityType: 'CHANGE_REQUEST',
+      entityId: request.id,
+      actionUrl: `/organizations/${orgId}/administration/approvals`,
+    });
+
+    return request;
   }
 
   /** Persist a queue/audit row. */
@@ -177,10 +219,25 @@ export class ChangeRequestService {
         request,
         userId,
       );
-      return this.prisma.changeRequest.update({
+      const updated = await this.prisma.changeRequest.update({
         where: { id: request.id },
         data: { appliedRefId },
       });
+
+      // Tell the maker their request went through.
+      this.emit({
+        organizationId: orgId,
+        type: NotificationType.APPROVAL_APPROVED,
+        actorId: userId,
+        recipientIds: [request.requestedBy],
+        title: 'Request approved',
+        body: `Your request to ${describeChange(request.operation, request.entity)} was approved.`,
+        entityType: 'CHANGE_REQUEST',
+        entityId: request.id,
+        actionUrl: `/organizations/${orgId}/administration/approvals`,
+      });
+
+      return updated;
     } catch (err) {
       // Apply failed after the claim — release it so the change isn't left
       // marked APPROVED without having actually run.
@@ -219,7 +276,7 @@ export class ChangeRequestService {
       );
     }
 
-    return this.prisma.changeRequest.update({
+    const rejected = await this.prisma.changeRequest.update({
       where: { id: request.id },
       data: {
         status: ChangeStatus.REJECTED,
@@ -228,6 +285,27 @@ export class ChangeRequestService {
         reason,
       },
     });
+
+    this.emit({
+      organizationId: orgId,
+      type: NotificationType.APPROVAL_REJECTED,
+      actorId: userId,
+      recipientIds: [request.requestedBy],
+      title: 'Request rejected',
+      body: reason
+        ? `Your request to ${describeChange(request.operation, request.entity)} was rejected: ${reason}`
+        : `Your request to ${describeChange(request.operation, request.entity)} was rejected.`,
+      entityType: 'CHANGE_REQUEST',
+      entityId: request.id,
+      actionUrl: `/organizations/${orgId}/administration/approvals`,
+    });
+
+    return rejected;
+  }
+
+  /** Fire-and-forget notification emit — never blocks or breaks the caller. */
+  private emit(event: NotificationEvent) {
+    this.events.emit('notification.create', event);
   }
 
   // ============================================================
