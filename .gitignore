@@ -22,6 +22,9 @@ coverage/
 .env.test.local
 .env.production.local
 
+generated
+
+
 # Logs
 logs/
 *.log
@@ -41,6 +44,8 @@ Thumbs.db
 *.swo
 *~
 
+.vercel
+
 # TypeScript
 *.tsbuildinfo
 
@@ -56,10 +61,6 @@ temp/
 dist/
 node_modules/
 
-# Lock files (optional)
-package-lock.json
-yarn.lock
-pnpm-lock.yaml
 
 # Misc
 *.tgz

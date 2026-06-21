@@ -1,0 +1,1028 @@
+generator client {
+  provider      = "prisma-client-js"
+  moduleFormat  = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// --- AUTHENTICATION MODELS ---
+
+model User {
+  id            String       @id @default(cuid())
+  name          String
+  email         String       @unique
+  emailVerified Boolean      @default(false)
+  image         String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  role          String       @default("USER")
+  banned        Boolean?     @default(false)
+  banReason     String?
+  banExpires    DateTime?
+  accounts      Account[]
+  memberships   Membership[]
+  sessions      Session[]
+  notifications Notification[]
+  notificationPrefs NotificationPreference?
+
+  @@map("user")
+}
+
+model Session {
+  id             String   @id @default(cuid())
+  userId         String
+  token          String   @unique
+  expiresAt      DateTime
+  ipAddress      String?
+  userAgent      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  impersonatedBy String?
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  userId                String
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  idToken               String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// --- ORGANIZATION & RBAC ---
+
+model Organization {
+  id           String        @id @default(cuid())
+  name         String
+  isActive     Boolean       @default(true)
+  logoUrl      String?
+  timeZone     String        @default("UTC")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  deletedAt    DateTime?     // Soft delete
+  metadata     Json?
+
+  invites      Invite[]
+  invoices     Invoice[]
+  memberships  Membership[]
+  roles        Role[]
+  subscription Subscription?
+  branches     Branch[]
+  warehouses   Warehouse[]
+
+  productCategories ProductCategory[]
+  products          Product[]
+  stockMovements    StockMovement[]
+  stockBatches      StockBatch[]
+  sales             Sale[]
+  saleReturns       SaleReturn[]
+  purchases         Purchase[]
+  purchaseReturns   PurchaseReturn[]
+  customers         Customer[]
+  suppliers         Supplier[]
+
+  changeRequests ChangeRequest[]
+  notifications  Notification[]
+
+  @@map("organization")
+}
+
+model Role {
+  id             String           @id @default(cuid())
+  organizationId String
+  name           String
+  kind           RoleKind         @default(GLOBAL)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  permissions    RolePermission[]
+
+  // Relations for scoping
+  memberships      Membership[]      // Users with this role globally
+  branchMembers    BranchMember[]    // Users with this role at a branch
+  warehouseMembers WarehouseMember[] // Users with this role at a warehouse
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@map("role")
+}
+
+model PermissionDefinition {
+  id          String           @id @default(cuid())
+  slug        String           @unique
+  name        String
+  description String           @default("")
+  category    FeatureCategory
+  action      String
+  roles       RolePermission[]
+  scope       PermissionScope
+
+  @@map("permission_definition")
+}
+
+enum PermissionScope {
+  GLOBAL          // org-wide, e.g. list all branches, view aggregated reports
+  LOCAL           // Scoped to branch or warehouse, e.g. view branch reports
+}
+
+model RolePermission {
+  roleId                 String
+  permissionDefinitionId String
+  allowed                Boolean              @default(false)
+  permissionDefinition   PermissionDefinition @relation(fields: [permissionDefinitionId], references: [id], onDelete: Cascade)
+  role                   Role                 @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionDefinitionId])
+  @@map("role_permission")
+}
+
+model Membership {
+  id             String           @id @default(cuid())
+  userId         String
+  organizationId String
+  roleId         String?
+  roleType       OrganizationRole @default(ADMIN)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role           Role?            @relation(fields: [roleId], references: [id])
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  branches       BranchMember[]
+  warehouses     WarehouseMember[]
+
+  @@unique([userId, organizationId])
+  @@index([userId])
+  @@index([organizationId])
+  @@index([roleId])
+  @@map("membership")
+}
+
+// --- LOCATIONS (BRANCH & WAREHOUSE) ---
+
+model Branch {
+  id             String   @id @default(cuid())
+  organizationId String
+
+  name           String
+  code           String?
+  address        String?
+  city           String?
+  phone          String?
+  email          String?
+  type           BranchType  @default(RETAIL)
+
+  isActive       Boolean  @default(true)
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  memberships    BranchMember[]
+  inviteLocations InviteLocation[]
+
+  stockLevels    StockLevel[]    @relation("StockLevelBranch")
+  stockBatches   StockBatch[]    @relation("StockBatchBranch")
+  movementsFrom  StockMovement[] @relation("StockMovementFromBranch")
+  movementsTo    StockMovement[] @relation("StockMovementToBranch")
+  sales          Sale[]
+  purchases      Purchase[]      @relation("PurchaseBranch")
+
+  @@index([organizationId])
+  @@unique([organizationId, name])
+  @@map("branch")
+}
+
+model BranchMember {
+  id           String     @id @default(cuid())
+  membershipId String
+  branchId     String
+  roleId       String?    // Scoped Role (e.g. "Branch Manager")
+  createdAt    DateTime   @default(now())
+
+  membership   Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  branch       Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  role         Role?      @relation(fields: [roleId], references: [id])
+
+  @@unique([membershipId, branchId])
+  @@index([membershipId])
+  @@index([branchId])
+  @@map("branch_member")
+}
+
+model Warehouse {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  code           String?
+  address        String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  memberships    WarehouseMember[]
+  inviteLocations InviteLocation[]
+
+  stockLevels    StockLevel[]    @relation("StockLevelWarehouse")
+  stockBatches   StockBatch[]    @relation("StockBatchWarehouse")
+  movementsFrom  StockMovement[] @relation("StockMovementFromWarehouse")
+  movementsTo    StockMovement[] @relation("StockMovementToWarehouse")
+  purchases      Purchase[]      @relation("PurchaseWarehouse")
+
+  @@index([organizationId])
+  @@unique([organizationId, name])
+  @@map("warehouse")
+}
+
+model WarehouseMember {
+  id           String     @id @default(cuid())
+  membershipId String
+  warehouseId  String
+  roleId       String?    // Scoped Role (e.g. "Inventory Lead")
+  createdAt    DateTime   @default(now())
+
+  membership   Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  warehouse    Warehouse  @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  role         Role?      @relation(fields: [roleId], references: [id])
+
+  @@unique([membershipId, warehouseId])
+  @@index([membershipId])
+  @@index([warehouseId])
+  @@map("warehouse_member")
+}
+
+// --- BILLING & SUBSCRIPTIONS ---
+
+model Plan {
+  id            String         @id @default(cuid())
+  slug          String         @unique
+  name          String
+  description   String?
+  badge         String?
+  sortOrder     Int
+  type          PlanType
+  currency      String         @default("ETB")
+  monthlyPrice  Int?
+  yearlyPrice   Int?
+  trialDays     Int?           @default(0)
+  isActive      Boolean        @default(true)
+  isPublic      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  addOns        AddOn[]
+  planFeatures  PlanFeature[]
+  subscriptions Subscription[]
+
+  @@index([slug, isActive, isPublic, sortOrder])
+  @@map("plan")
+}
+
+model Feature {
+  id           String           @id @default(cuid())
+  key          String           @unique
+  name         String
+  description  String?
+  type         FeatureType
+  category     FeatureCategory?
+  planFeatures PlanFeature[]
+
+  @@map("feature")
+}
+
+model PlanFeature {
+  planId             String
+  featureId          String
+  value              String
+  overrideDescription String?
+  feature            Feature @relation(fields: [featureId], references: [id], onDelete: Cascade)
+  plan               Plan    @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@id([planId, featureId])
+  @@map("plan_feature")
+}
+
+model AddOn {
+  id            String             @id @default(cuid())
+  slug          String             @unique
+  name          String
+  description   String?
+  monthlyPrice  Int
+  yearlyPrice   Int?
+  linkedFeature String?
+  maxQuantity   Int?               @default(1)
+  planId        String?
+  plan          Plan?              @relation(fields: [planId], references: [id])
+  purchasedItems SubscriptionItem[]
+
+  @@map("add_on")
+}
+
+model Subscription {
+  id                String             @id @default(cuid())
+  organizationId    String             @unique
+  planId            String
+  status            SubscriptionStatus
+  trialEndsAt       DateTime?
+  cancelAtPeriodEnd Boolean            @default(false)
+  billingInterval   BillingInterval
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  items             SubscriptionItem[] // Tracks purchased add-ons
+  invoices          Invoice[]
+  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  plan              Plan               @relation(fields: [planId], references: [id])
+
+  @@index([organizationId])
+  @@index([planId])
+  @@map("subscription")
+}
+
+model SubscriptionItem {
+  id             String       @id @default(cuid())
+  subscriptionId String
+  addOnId        String
+  quantity       Int          @default(1)
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  addOn          AddOn        @relation(fields: [addOnId], references: [id])
+
+  @@unique([subscriptionId, addOnId])
+  @@map("subscription_item")
+}
+
+model Invoice {
+  id             String        @id @default(cuid())
+  organizationId String
+  subscriptionId String
+  amount         Int
+  currency       String        @default("ETB")
+  status         InvoiceStatus
+  paidAt         DateTime?
+  createdAt      DateTime      @default(now())
+  organization   Organization  @relation(fields: [organizationId], references: [id]) // Removed Cascade to keep records
+  subscription   Subscription  @relation(fields: [subscriptionId], references: [id])
+
+  @@index([organizationId])
+  @@map("invoice")
+}
+
+model Invite {
+  id             String           @id @default(cuid())
+  email          String
+  organizationId String
+  roleId         String?
+  roleType       OrganizationRole @default(ADMIN)
+  token          String           @unique
+  expiresAt      DateTime
+  status         InviteStatus     @default(PENDING)
+  createdAt      DateTime         @default(now())
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  locations      InviteLocation[]
+
+  @@index([email])
+  @@map("invite")
+}
+
+// Branch/warehouse a LOCAL-role invite grants on accept. Exactly one of
+// branchId/warehouseId is set per row (enforced in the service layer).
+model InviteLocation {
+  id          String     @id @default(cuid())
+  inviteId    String
+  branchId    String?
+  warehouseId String?
+  createdAt   DateTime   @default(now())
+
+  invite      Invite     @relation(fields: [inviteId], references: [id], onDelete: Cascade)
+  branch      Branch?    @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  warehouse   Warehouse? @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+
+  @@index([inviteId])
+  @@map("invite_location")
+}
+
+// --- PRODUCT CATALOG (org-wide definition — the "what") ---
+
+model ProductCategory {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  products       Product[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@map("product_category")
+}
+
+model Product {
+  id             String      @id @default(cuid())
+  organizationId String
+  categoryId     String?
+  name           String
+  description    String?
+  unit           ProductUnit @default(PIECE)
+  isActive       Boolean     @default(true)
+  // Perishable products carry an expiry date per purchased batch; stock is then
+  // tracked in dated StockBatch rows (FEFO) and expired units cannot be sold.
+  isPerishable   Boolean     @default(false)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  category     ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  variants     ProductVariant[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@index([categoryId])
+  @@map("product")
+}
+
+// A specific sellable unit of a Product (e.g. "Large / Red"). Stock attaches here.
+model ProductVariant {
+  id           String   @id @default(cuid())
+  productId    String
+  sku          String
+  barcode      String?
+  name         String
+  costPrice    Int      @default(0) // minor units (e.g. santim)
+  sellingPrice Int      @default(0) // minor units
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  product     Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  stockLevels StockLevel[]
+  stockBatches StockBatch[]
+  movements   StockMovement[]
+  saleItems   SaleItem[]
+  purchaseItems PurchaseItem[]
+
+  @@unique([productId, sku])
+  @@index([productId])
+  @@index([sku])
+  @@map("product_variant")
+}
+
+// --- STOCK (quantity per location — the "how many / where") ---
+// Zero-or-one of branchId / warehouseId is set per row (enforced in the service layer):
+// one set = stock at that branch/warehouse; BOTH null = the org-wide receiving pool
+// (purchased-but-unallocated stock). A partial unique index keeps one pool row/variant.
+model StockLevel {
+  id           String   @id @default(cuid())
+  variantId    String
+  branchId     String?
+  warehouseId  String?
+  quantity     Int      @default(0)
+  reorderPoint Int?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  variant   ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  branch    Branch?        @relation("StockLevelBranch", fields: [branchId], references: [id], onDelete: Cascade)
+  warehouse Warehouse?     @relation("StockLevelWarehouse", fields: [warehouseId], references: [id], onDelete: Cascade)
+
+  @@unique([variantId, branchId, warehouseId])
+  @@index([variantId])
+  @@index([branchId])
+  @@index([warehouseId])
+  @@map("stock_level")
+}
+
+// Append-only ledger of every quantity change. Never updated.
+// quantity is always positive; `type` + which side (from/to) is set conveys direction.
+model StockMovement {
+  id             String       @id @default(cuid())
+  organizationId String
+  variantId      String
+  type           MovementType
+  quantity       Int
+  reason         String?
+  reference      String?
+  performedBy    String // userId (no FK — ledger immutability)
+
+  fromBranchId    String?
+  fromWarehouseId String?
+  toBranchId      String?
+  toWarehouseId   String?
+
+  createdAt DateTime @default(now())
+
+  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  variant       ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  fromBranch    Branch?        @relation("StockMovementFromBranch", fields: [fromBranchId], references: [id], onDelete: SetNull)
+  fromWarehouse Warehouse?     @relation("StockMovementFromWarehouse", fields: [fromWarehouseId], references: [id], onDelete: SetNull)
+  toBranch      Branch?        @relation("StockMovementToBranch", fields: [toBranchId], references: [id], onDelete: SetNull)
+  toWarehouse   Warehouse?     @relation("StockMovementToWarehouse", fields: [toWarehouseId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([variantId])
+  @@index([createdAt])
+  @@map("stock_movement")
+}
+
+// --- EXPIRY BATCHES (perishable products only — the "expires when") ---
+// A dated lot of a perishable variant at one location. Mirrors StockLevel's
+// polymorphic location (zero-or-one of branchId/warehouseId; both null = the
+// org receiving pool). For a perishable variant at a location, the sum of its
+// StockBatch.quantity equals the matching StockLevel.quantity. Sales consume
+// non-expired batches FEFO (soonest expiryDate first); expired units are blocked
+// from sale and removed via a maker-checker write-off.
+model StockBatch {
+  id             String   @id @default(cuid())
+  organizationId String
+  variantId      String
+  branchId       String?
+  warehouseId    String?
+  quantity       Int      @default(0)
+  expiryDate     DateTime
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  variant      ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  branch       Branch?        @relation("StockBatchBranch", fields: [branchId], references: [id], onDelete: Cascade)
+  warehouse    Warehouse?     @relation("StockBatchWarehouse", fields: [warehouseId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([variantId, branchId, warehouseId, expiryDate])
+  @@map("stock_batch")
+}
+
+// --- SALES ---
+
+model Sale {
+  id             String   @id @default(cuid())
+  organizationId String
+  branchId       String
+  customerId     String?
+  soldBy         String // userId
+  customerName   String?
+  customerPhone  String?
+  subtotal       Int // minor units
+  discount       Int            @default(0) // minor units, applied before tax
+  tax            Int            @default(0) // minor units
+  total          Int // minor units = subtotal - discount + tax
+  amountPaid     Int            @default(0) // minor units tendered at sale time
+  refundedTotal  Int            @default(0) // cumulative refunded via returns
+  paymentMethod  PaymentMethod?
+  paymentStatus  PaymentStatus  @default(UNPAID)
+  paymentRef     String? // mock gateway transaction reference
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch       @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  customer     Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  items        SaleItem[]
+  returns      SaleReturn[]
+
+  @@index([organizationId])
+  @@index([branchId])
+  @@index([customerId])
+  @@index([createdAt])
+  @@map("sale")
+}
+
+model SaleItem {
+  id               String @id @default(cuid())
+  saleId           String
+  variantId        String
+  quantity         Int
+  unitPrice        Int // minor units, snapshot at sale time
+  lineTotal        Int // minor units = quantity * unitPrice
+  returnedQuantity Int    @default(0) // units returned so far (caps partial returns)
+
+  sale     Sale             @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  variant  ProductVariant   @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  returns  SaleReturnItem[]
+
+  @@index([saleId])
+  @@index([variantId])
+  @@map("sale_item")
+}
+
+// A (partial) return against a Sale: restocks items, reverses part of the total.
+model SaleReturn {
+  id             String   @id @default(cuid())
+  organizationId String
+  saleId         String
+  branchId       String
+  processedBy    String // userId
+  total          Int // minor units refunded
+  reason         String?
+  createdAt      DateTime @default(now())
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sale         Sale             @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  items        SaleReturnItem[]
+
+  @@index([organizationId])
+  @@index([saleId])
+  @@map("sale_return")
+}
+
+model SaleReturnItem {
+  id         String @id @default(cuid())
+  returnId   String
+  saleItemId String
+  variantId  String
+  quantity   Int
+  unitPrice  Int // minor units, snapshot from the sale line
+  lineTotal  Int // minor units = quantity * unitPrice
+
+  saleReturn SaleReturn @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  saleItem   SaleItem   @relation(fields: [saleItemId], references: [id], onDelete: Cascade)
+
+  @@index([returnId])
+  @@index([saleItemId])
+  @@map("sale_return_item")
+}
+
+// --- PURCHASES (stock inflow from a supplier — mirror of Sale) ---
+// Destination is polymorphic: exactly one of branchId / warehouseId (service-enforced).
+model Purchase {
+  id             String   @id @default(cuid())
+  organizationId String
+  branchId       String?
+  warehouseId    String?
+  supplierId     String?
+  supplierName   String?
+  reference      String?
+  receivedBy     String // userId
+  total          Int // minor units
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch?        @relation("PurchaseBranch", fields: [branchId], references: [id], onDelete: SetNull)
+  warehouse    Warehouse?     @relation("PurchaseWarehouse", fields: [warehouseId], references: [id], onDelete: SetNull)
+  supplier     Supplier?      @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  items        PurchaseItem[]
+  returns      PurchaseReturn[]
+
+  @@index([organizationId])
+  @@index([supplierId])
+  @@index([createdAt])
+  @@map("purchase")
+}
+
+model PurchaseItem {
+  id               String @id @default(cuid())
+  purchaseId       String
+  variantId        String
+  quantity         Int
+  unitCost         Int // minor units, cost paid at purchase time
+  lineTotal        Int // minor units = quantity * unitCost
+  returnedQuantity Int    @default(0) // units returned to supplier so far (caps partial returns)
+  expiryDate       DateTime? // set when the product is perishable; mirrors the received StockBatch
+
+  purchase Purchase             @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  variant  ProductVariant       @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  returns  PurchaseReturnItem[]
+
+  @@index([purchaseId])
+  @@index([variantId])
+  @@map("purchase_item")
+}
+
+// A (partial) return against a Purchase: stock leaves the receiving pool back to
+// the supplier, reversing part of the purchase total. Mirror of SaleReturn.
+model PurchaseReturn {
+  id             String   @id @default(cuid())
+  organizationId String
+  purchaseId     String
+  supplierId     String?
+  supplierName   String?
+  processedBy    String // userId
+  total          Int // minor units returned (at purchase cost)
+  reason         String?
+  createdAt      DateTime @default(now())
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  purchase     Purchase             @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  items        PurchaseReturnItem[]
+
+  @@index([organizationId])
+  @@index([purchaseId])
+  @@map("purchase_return")
+}
+
+model PurchaseReturnItem {
+  id             String @id @default(cuid())
+  returnId       String
+  purchaseItemId String
+  variantId      String
+  quantity       Int
+  unitCost       Int // minor units, snapshot from the purchase line
+  lineTotal      Int // minor units = quantity * unitCost
+
+  purchaseReturn PurchaseReturn @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  purchaseItem   PurchaseItem   @relation(fields: [purchaseItemId], references: [id], onDelete: Cascade)
+
+  @@index([returnId])
+  @@index([purchaseItemId])
+  @@map("purchase_return_item")
+}
+
+// --- CONTACTS (org-wide reference data) ---
+
+model Customer {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  phone          String?
+  email          String?
+  address        String?
+  notes          String?
+  balance        Int      @default(0) // minor units owed to us (receivable); >0 = customer owes
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sales        Sale[]
+
+  @@index([organizationId])
+  @@map("customer")
+}
+
+model Supplier {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  contactPerson  String?
+  phone          String?
+  email          String?
+  address        String?
+  notes          String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  purchases    Purchase[]
+
+  @@index([organizationId])
+  @@map("supplier")
+}
+
+// --- ENUMS ---
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
+enum OrganizationRole {
+  OWNER
+  ADMIN
+}
+
+enum RoleKind {
+  GLOBAL
+  LOCAL
+}
+
+enum PlanType {
+  FREE
+  PAID
+}
+
+enum FeatureType {
+  BOOLEAN
+  NUMBER
+  LIST
+}
+
+enum FeatureCategory {
+  AI
+  INVENTORY
+  PRODUCTS
+  SALES
+  WAREHOUSING
+  BRANCHES
+  ORDERS
+  PURCHASE
+  SUPPLIERS
+  REPORTS
+  CUSTOMERS
+  USERS
+  HELP
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  ONFREETRIAL
+  PENDING
+  EXPIRED
+  CANCELED
+}
+
+enum BillingInterval {
+  MONTHLY
+  YEARLY
+}
+
+enum InvoiceStatus {
+  DRAFT
+  OPEN
+  PAID
+  VOID
+  UNCOLLECTIBLE
+}
+
+enum BranchType {
+  OFFICE
+  RETAIL    // For Shops/Selling points
+  SHOWROOM  // For display only
+  VIRTUAL   // For E-commerce/Online sales
+}
+
+enum ProductUnit {
+  PIECE
+  KG
+  GRAM
+  LITER
+  MILLILITER
+  METER
+  BOX
+  PACK
+  DOZEN
+}
+
+enum MovementType {
+  PURCHASE_IN    // new stock received into a location (to-side set)
+  SALE_OUT       // stock leaving a branch via a sale (from-side set)
+  SALE_RETURN    // stock returning to a branch via a sale return (to-side set)
+  PURCHASE_RETURN // stock leaving via a return to a supplier (from-side set)
+  TRANSFER       // stock moved location→location (both sides set)
+  ADJUSTMENT     // manual correction (sign encoded by which side is set)
+  EXPIRY_WRITE_OFF // perishable units removed because they expired (from-side set)
+}
+
+// Tender used to settle a sale (mock gateway — no real processor).
+enum PaymentMethod {
+  CASH
+  CARD
+  MOBILE_MONEY
+}
+
+// Settlement state of a sale, including post-return refund states.
+enum PaymentStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  PARTIALLY_REFUNDED
+  REFUNDED
+}
+
+// --- CHANGE APPROVAL (maker–checker) — products, categories, suppliers, … ---
+
+enum ChangeStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ChangeEntity {
+  PRODUCT
+  VARIANT
+  CATEGORY
+  SUPPLIER
+  PURCHASE
+  STOCK_MOVE
+}
+
+enum ChangeOp {
+  CREATE
+  UPDATE
+  DELETE
+}
+
+// Doubles as the approval queue AND the audit log across every maker-checker
+// domain. A manager-permission member's action lands here as PENDING (mutates
+// nothing until approved); an Owner / ADMINISTRATION_ACCESS member's action is
+// applied instantly and recorded here as already-APPROVED. requestedBy/reviewedBy
+// are raw userIds (no FK), matching the StockMovement ledger pattern; names are
+// resolved at read time.
+model ChangeRequest {
+  id             String       @id @default(cuid())
+  organizationId String
+  entity         ChangeEntity
+  operation      ChangeOp
+  productId      String? // product target, or the variant's parent product
+  variantId      String? // variant target (UPDATE/DELETE)
+  categoryId     String? // category target (UPDATE/DELETE)
+  supplierId     String? // supplier target (UPDATE/DELETE)
+  payload        Json? // the create/update DTO snapshot; null for DELETE
+  status         ChangeStatus @default(PENDING)
+  requestedBy    String // userId — who requested / acted
+  reviewedBy     String? // userId of the approver
+  reviewedAt     DateTime?
+  reason         String? // rejection reason / note
+  appliedRefId   String? // id of the row created/affected when applied
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status])
+  @@index([requestedBy])
+  @@map("change_request")
+}
+
+// ============================================================
+//  NOTIFICATIONS
+// ============================================================
+
+enum NotificationType {
+  APPROVAL_REQUESTED // a change request was queued — sent to approvers
+  APPROVAL_APPROVED // a request you made was approved — sent to the maker
+  APPROVAL_REJECTED // a request you made was rejected — sent to the maker
+  LOW_STOCK // a variant fell to/below its reorder point
+  SALE_RECORDED // a sale was recorded at a branch
+  MEMBER_JOINED // someone accepted an invite and joined the org
+  ROLE_CHANGED // a member's org/location role was changed
+}
+
+// One row per recipient per event (fan-out happens in NotificationsService).
+// userId/actorId are raw user ids (no FK on actor), matching the ChangeRequest
+// and StockMovement ledger convention; actor display info is resolved at push time.
+model Notification {
+  id             String           @id @default(cuid())
+  organizationId String
+  userId         String // recipient
+  actorId        String? // who caused it
+  type           NotificationType
+  title          String
+  body           String?
+  entityType     String? // "CHANGE_REQUEST" | "SALE" | "STOCK_LEVEL" | "MEMBERSHIP"
+  entityId       String?
+  actionUrl      String?
+  metadata       Json?
+  isRead         Boolean          @default(false)
+  readAt         DateTime?
+  createdAt      DateTime         @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+  @@map("notification")
+}
+
+// Per-user real-time push toggles. Absent row = all categories enabled.
+model NotificationPreference {
+  id               String  @id @default(cuid())
+  userId           String  @unique
+  pushOnApproval   Boolean @default(true)
+  pushOnLowStock   Boolean @default(true)
+  pushOnSale       Boolean @default(true)
+  pushOnMembership Boolean @default(true)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_preference")
+}

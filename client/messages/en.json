@@ -1,0 +1,15 @@
+{
+  "hero": {
+    "title": {
+      "part1": "Master Your",
+      "highlight": "Inventory",
+      "part2": "Grow Without Limits."
+    },
+    "description": "Track and optimize your stock in real-time with our all-in-one inventory solution. Stay in control and scale effortlessly.",
+    "buttons": {
+      "dashboard": "Get Dashboard",
+      "plans": "See Plans"
+    },
+    "imageAlt": "Inventory management dashboard preview"
+  }
+}
