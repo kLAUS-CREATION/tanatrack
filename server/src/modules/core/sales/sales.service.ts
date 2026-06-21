@@ -3,7 +3,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { MovementType, PaymentStatus } from '@prisma/client';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { MovementType, NotificationType, PaymentStatus } from '@prisma/client';
 import { PrismaService } from 'src/modules/prisma/prisma.service';
 import { MembershipService } from '../membership/membership.service';
 import { InventoryService } from '../inventory/inventory.service';
@@ -17,6 +18,7 @@ export class SalesService {
     private prisma: PrismaService,
     private membershipService: MembershipService,
     private inventoryService: InventoryService,
+    private events: EventEmitter2,
   ) {}
 
   // List the sales the user is allowed to see. SALES_VIEW_ALL holders see every
@@ -162,7 +164,7 @@ export class SalesService {
         throw new NotFoundException('Customer not found in this organization');
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const sale = await this.prisma.$transaction(async (tx) => {
       let subtotal = 0;
       const itemRows: {
         variantId: string;
@@ -281,6 +283,61 @@ export class SalesService {
 
       return sale;
     });
+
+    // Notifications run after the sale commits — best-effort, never block it.
+    await this.notifySaleRecorded(orgId, userId, branch.name, sale);
+
+    return sale;
+  }
+
+  /**
+   * Post-commit notifications for a sale: tell sales supervisors it happened, and
+   * alert inventory managers about any variant that dropped to its reorder point.
+   */
+  private async notifySaleRecorded(
+    orgId: string,
+    userId: string,
+    branchName: string,
+    sale: { id: string; branchId: string; total: number; items?: { variantId: string }[] },
+  ) {
+    this.events.emit('notification.create', {
+      organizationId: orgId,
+      type: NotificationType.SALE_RECORDED,
+      actorId: userId,
+      audience: { permission: PERMISSIONS.SALES_VIEW_ALL },
+      title: 'New sale recorded',
+      body: `A sale was recorded at ${branchName}.`,
+      entityType: 'SALE',
+      entityId: sale.id,
+      actionUrl: `/organizations/${orgId}/sales`,
+    });
+
+    // Low-stock sweep over only the variants this sale touched.
+    const variantIds = [...new Set((sale.items ?? []).map((i) => i.variantId))];
+    if (variantIds.length === 0) return;
+
+    const levels = await this.prisma.stockLevel.findMany({
+      where: {
+        branchId: sale.branchId,
+        variantId: { in: variantIds },
+        reorderPoint: { not: null },
+      },
+      include: { variant: { select: { name: true, sku: true } } },
+    });
+
+    for (const lvl of levels) {
+      if (lvl.reorderPoint == null || lvl.quantity > lvl.reorderPoint) continue;
+      this.events.emit('notification.create', {
+        organizationId: orgId,
+        type: NotificationType.LOW_STOCK,
+        audience: { permission: PERMISSIONS.INVENTORY_VIEW_GLOBAL_STOCK },
+        title: 'Low stock alert',
+        body: `${lvl.variant.name} (${lvl.variant.sku}) is down to ${lvl.quantity} at ${branchName}.`,
+        entityType: 'STOCK_LEVEL',
+        entityId: lvl.id,
+        actionUrl: `/organizations/${orgId}/inventory`,
+      });
+    }
   }
 
   // Partial, line-level return against a sale: restocks the returned units to the
