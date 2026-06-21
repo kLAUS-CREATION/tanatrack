@@ -3,6 +3,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
 import { ConfigModule } from '@nestjs/config';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { PrismaModule } from './modules/prisma/prisma.module';
 
 // THIRD PARTY MODULES
@@ -32,6 +33,7 @@ import { MembershipController } from './modules/core/membership/membership.contr
 import { MembershipModule } from './modules/core/membership/membership.module';
 import { BranchModule } from './modules/core/branch/branch.module';
 import { WarehouseModule } from './modules/core/warehouse/warehouse.module';
+import { NotificationsModule } from './modules/core/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -60,6 +62,7 @@ import { WarehouseModule } from './modules/core/warehouse/warehouse.module';
 
     // Third Party Modules
     AuthModule.forRoot({ auth }),
+    EventEmitterModule.forRoot(),
 
     // Local Modules
     PrismaModule,
@@ -81,6 +84,7 @@ import { WarehouseModule } from './modules/core/warehouse/warehouse.module';
     MembershipModule,
     BranchModule,
     WarehouseModule,
+    NotificationsModule,
   ],
 
   controllers: [AppController, FeaturesController, MembershipController],
