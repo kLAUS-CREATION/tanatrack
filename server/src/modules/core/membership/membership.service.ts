@@ -5,9 +5,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   OrganizationRole,
   InviteStatus,
+  NotificationType,
   PermissionScope,
   RoleKind,
 } from '@prisma/client';
@@ -20,6 +22,7 @@ import {
 } from './dto/membership.dto';
 import { MailService } from 'src/modules/mail/mail.service';
 import { PrismaService } from 'src/modules/prisma/prisma.service';
+import { PERMISSIONS } from 'src/constants/permissions.constant';
 
 /**
  * Location context for a permission check.
@@ -35,6 +38,7 @@ export class MembershipService {
   constructor(
     private prisma: PrismaService,
     private mailService: MailService,
+    private events: EventEmitter2,
   ) {}
 
   /**
@@ -454,10 +458,13 @@ export class MembershipService {
 
     await this.assertRoleInOrg(orgId, dto.roleId);
 
-    return this.prisma.membership.update({
+    const updated = await this.prisma.membership.update({
       where: { id: membershipId },
       data: { roleId: dto.roleId ?? null },
     });
+
+    this.notifyRoleChanged(orgId, adminId, membership.userId);
+    return updated;
   }
 
   /** Grant a member a scoped role at a branch (upsert), or remove their assignment. */
@@ -469,7 +476,7 @@ export class MembershipService {
     dto: AssignLocationRoleDto,
   ) {
     await this.verifyAccess(adminId, orgId, 'ADMINISTRATION_ACCESS');
-    await this.getOrgMembership(orgId, membershipId);
+    const membership = await this.getOrgMembership(orgId, membershipId);
 
     const branch = await this.prisma.branch.findFirst({
       where: { id: branchId, organizationId: orgId },
@@ -479,11 +486,14 @@ export class MembershipService {
 
     await this.assertRoleInOrg(orgId, dto.roleId);
 
-    return this.prisma.branchMember.upsert({
+    const result = await this.prisma.branchMember.upsert({
       where: { membershipId_branchId: { membershipId, branchId } },
       create: { membershipId, branchId, roleId: dto.roleId ?? null },
       update: { roleId: dto.roleId ?? null },
     });
+
+    this.notifyRoleChanged(orgId, adminId, membership.userId, branch.name);
+    return result;
   }
 
   async removeBranchRole(
@@ -510,7 +520,7 @@ export class MembershipService {
     dto: AssignLocationRoleDto,
   ) {
     await this.verifyAccess(adminId, orgId, 'ADMINISTRATION_ACCESS');
-    await this.getOrgMembership(orgId, membershipId);
+    const membership = await this.getOrgMembership(orgId, membershipId);
 
     const warehouse = await this.prisma.warehouse.findFirst({
       where: { id: warehouseId, organizationId: orgId },
@@ -520,11 +530,14 @@ export class MembershipService {
 
     await this.assertRoleInOrg(orgId, dto.roleId);
 
-    return this.prisma.warehouseMember.upsert({
+    const result = await this.prisma.warehouseMember.upsert({
       where: { membershipId_warehouseId: { membershipId, warehouseId } },
       create: { membershipId, warehouseId, roleId: dto.roleId ?? null },
       update: { roleId: dto.roleId ?? null },
     });
+
+    this.notifyRoleChanged(orgId, adminId, membership.userId, warehouse.name);
+    return result;
   }
 
   async removeWarehouseRole(
@@ -779,9 +792,9 @@ export class MembershipService {
       : null;
     const isLocalRole = role?.kind === RoleKind.LOCAL;
 
-    return await this.prisma.$transaction(async (tx) => {
+    const membership = await this.prisma.$transaction(async (tx) => {
       // Create the membership. Local roles leave the org-wide role empty.
-      const membership = await tx.membership.create({
+      const created = await tx.membership.create({
         data: {
           userId,
           organizationId: invite.organizationId,
@@ -796,7 +809,7 @@ export class MembershipService {
           if (loc.branchId) {
             await tx.branchMember.create({
               data: {
-                membershipId: membership.id,
+                membershipId: created.id,
                 branchId: loc.branchId,
                 roleId: invite.roleId,
               },
@@ -804,7 +817,7 @@ export class MembershipService {
           } else if (loc.warehouseId) {
             await tx.warehouseMember.create({
               data: {
-                membershipId: membership.id,
+                membershipId: created.id,
                 warehouseId: loc.warehouseId,
                 roleId: invite.roleId,
               },
@@ -819,7 +832,43 @@ export class MembershipService {
         data: { status: InviteStatus.ACCEPTED },
       });
 
-      return membership;
+      return created;
+    });
+
+    // Let the org's admins know a new member has joined.
+    this.events.emit('notification.create', {
+      organizationId: invite.organizationId,
+      type: NotificationType.MEMBER_JOINED,
+      actorId: userId,
+      audience: { permission: PERMISSIONS.ADMINISTRATION_ACCESS },
+      title: 'New member joined',
+      body: 'A new member accepted their invitation and joined the organization.',
+      entityType: 'MEMBERSHIP',
+      entityId: membership.id,
+      actionUrl: `/organizations/${invite.organizationId}/employees`,
+    });
+
+    return membership;
+  }
+
+  /** Notify a member their org-wide or location role changed. */
+  private notifyRoleChanged(
+    orgId: string,
+    adminId: string,
+    memberUserId: string,
+    locationName?: string,
+  ) {
+    this.events.emit('notification.create', {
+      organizationId: orgId,
+      type: NotificationType.ROLE_CHANGED,
+      actorId: adminId,
+      recipientIds: [memberUserId],
+      title: 'Your role was updated',
+      body: locationName
+        ? `Your role at ${locationName} was updated by an administrator.`
+        : 'Your organization role was updated by an administrator.',
+      entityType: 'MEMBERSHIP',
+      actionUrl: `/organizations/${orgId}`,
     });
   }
 
