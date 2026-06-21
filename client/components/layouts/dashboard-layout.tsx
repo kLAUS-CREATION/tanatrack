@@ -15,6 +15,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { NotificationBell } from "@/components/notification-bell";
 import React from "react";
 import { usePathname } from "next/navigation";
 
@@ -70,6 +71,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 })}
               </BreadcrumbList>
             </Breadcrumb>
+            <div className="ml-auto flex items-center gap-2">
+              <NotificationBell />
+            </div>
           </div>
         </header>
         <main className="flex flex-1 flex-col gap-4 p-4 pt-0 overflow-y-auto overflow-x-hidden">
