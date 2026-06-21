@@ -7,6 +7,7 @@ import {
 import { Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { auth } from 'src/lib/auth';
+import { corsOrigins } from 'src/config/cors';
 
 /** Per-user room name. */
 const room = (userId: string) => `user_${userId}`;
@@ -20,13 +21,10 @@ const room = (userId: string) => `user_${userId}`;
  * `sendToUser` emits to that room (handles multiple tabs/devices for free).
  */
 @WebSocketGateway({
+  // Allowed browser origins come from corsOrigins() (localhost + FRONTEND_URL),
+  // so the production Vercel origin is configured via env, not hardcoded here.
   cors: {
-    origin: [
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'http://localhost:5500',
-      'https://tana-track.vercel.app',
-    ],
+    origin: corsOrigins(),
     credentials: true,
   },
 })
