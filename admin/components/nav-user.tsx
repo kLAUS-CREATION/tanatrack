@@ -1,11 +1,6 @@
 "use client"
 
-import {
-  BadgeCheck,
-  Bell,
-  ChevronsUpDown,
-  CreditCard,
-} from "lucide-react"
+import { ChevronsUpDown } from "lucide-react"
 
 import {
   Avatar,
@@ -15,8 +10,6 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -27,17 +20,23 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { Session } from "@/lib/auth-client"
 import { LogoutButton } from "./auth/logout-button"
 import { useGetSessionQuery } from "@/lib/features/services/auth.api"
 
+/** Two-letter initials from a display name, for the avatar fallback. */
+function initials(name?: string | null) {
+  if (!name) return "AD"
+  const parts = name.trim().split(/\s+/)
+  return (parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")
+}
+
 export function NavUser() {
   const { isMobile } = useSidebar()
-  const { data, isLoading} = useGetSessionQuery();
+  const { data, isLoading } = useGetSessionQuery()
 
-  if (isLoading) {
-    return null;
-  }
+  if (isLoading) return null
+
+  const user = data?.user
 
   return (
     <SidebarMenu>
@@ -49,12 +48,16 @@ export function NavUser() {
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <Avatar className="h-8 w-8 rounded-lg">
-                <AvatarImage src={data?.user?.image || "/image/profile-placeholder.svg"} alt={data?.user?.name || "something"} />
-                <AvatarFallback className="rounded-lg">CN</AvatarFallback>
+                <AvatarImage src={user?.image || undefined} alt={user?.name || "Admin"} />
+                <AvatarFallback className="rounded-lg uppercase">
+                  {initials(user?.name)}
+                </AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{data?.user?.name || "Customer"}</span>
-                <span className="truncate text-xs">{data?.user?.email || "Unknown"}</span>
+                <span className="truncate font-medium">{user?.name || "Admin"}</span>
+                <span className="truncate text-xs text-muted-foreground">
+                  {user?.email || "—"}
+                </span>
               </div>
               <ChevronsUpDown className="ml-auto size-4" />
             </SidebarMenuButton>
@@ -66,37 +69,25 @@ export function NavUser() {
             sideOffset={4}
           >
             <DropdownMenuLabel className="p-0 font-normal">
-              <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+              <div className="flex items-center gap-2 px-2 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg">
-                  <AvatarImage src={data?.user?.image || "/image/profile-placeholder.svg"} alt={data?.user?.name || "something"} />
-                  <AvatarFallback className="rounded-lg">KL</AvatarFallback>
+                  <AvatarImage src={user?.image || undefined} alt={user?.name || "Admin"} />
+                  <AvatarFallback className="rounded-lg uppercase">
+                    {initials(user?.name)}
+                  </AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">{data?.user?.name}</span>
-                  <span className="truncate text-xs">{data?.user?.email}</span>
+                  <span className="truncate font-medium">{user?.name || "Admin"}</span>
+                  <span className="truncate text-xs text-muted-foreground">
+                    {user?.email || "—"}
+                  </span>
                 </div>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <BadgeCheck />
-                Account
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <CreditCard />
-                Billing
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Bell />
-                Notifications
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <LogoutButton />
-            </DropdownMenuItem>
+            <div className="p-1">
+              <LogoutButton variant="ghost" className="w-full justify-start" />
+            </div>
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
