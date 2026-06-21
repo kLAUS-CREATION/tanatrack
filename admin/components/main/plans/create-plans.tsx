@@ -70,12 +70,20 @@ export function CreatePlanForm({ onSuccess }: { onSuccess: () => void }) {
 
   async function onSubmit(values: PlanFormValues) {
     try {
-      await createPlan(values).unwrap();
+      // Prices are entered in major units (e.g. ETB) but stored as minor units.
+      await createPlan({
+        ...values,
+        monthlyPrice: Math.round((values.monthlyPrice ?? 0) * 100),
+        yearlyPrice: Math.round((values.yearlyPrice ?? 0) * 100),
+      }).unwrap();
       toast.success("Subscription plan created!");
       form.reset();
       onSuccess();
     } catch (e) {
-      toast.error("Failed to create plan.");
+      const message =
+        (e as { data?: { message?: string } })?.data?.message ??
+        "Failed to create plan.";
+      toast.error(message);
     }
   }
 
