@@ -29,9 +29,10 @@ export function AdministrationNav() {
 
   const { isOwner } = useOrgAccess(orgId)
 
-  // The Organization tab edits org-level settings — owner only.
+  // The Organization tab edits org-level settings — owner only — and leads the
+  // nav so it's the first thing an owner lands on.
   const items = isOwner
-    ? [...baseItems, { title: "Organization", slug: "organization", icon: Building2 }]
+    ? [{ title: "Organization", slug: "organization", icon: Building2 }, ...baseItems]
     : baseItems
 
   return (

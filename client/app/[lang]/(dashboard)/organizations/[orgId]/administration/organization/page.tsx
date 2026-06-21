@@ -22,15 +22,5 @@ export default function Page() {
 
   if (isLoading || !isOwner) return null;
 
-  return (
-    <div className="space-y-4">
-      <div>
-        <h2 className="text-lg font-semibold">Organization settings</h2>
-        <p className="text-sm text-muted-foreground">
-          Update your organization&apos;s name, logo and time zone.
-        </p>
-      </div>
-      <OrganizationForm />
-    </div>
-  );
+  return <OrganizationForm />;
 }
