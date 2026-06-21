@@ -38,6 +38,7 @@ export function MembersManager({ organizationId }: { organizationId: string }) {
 
   const [search, setSearch] = useState("");
   const [scope, setScope] = useState("all");
+  const [roleFilter, setRoleFilter] = useState("all");
   const [tab, setTab] = useState<RoleTab>("all");
 
   // Locations that actually have members assigned — used for the scope filter.
@@ -54,12 +55,20 @@ export function MembersManager({ organizationId }: { organizationId: string }) {
     };
   }, [members]);
 
-  // Apply search + scope first; role tabs are counted from this base.
+  // Apply search + scope + role first; role tabs are counted from this base.
   const base = useMemo(() => {
     const q = search.trim().toLowerCase();
     return (members ?? []).filter((m) => {
       if (q && !(m.user.name?.toLowerCase().includes(q) || m.user.email?.toLowerCase().includes(q))) {
         return false;
+      }
+      // Match the role anywhere the member holds it: org-wide, branch, or warehouse.
+      if (roleFilter !== "all") {
+        const holdsRole =
+          m.roleId === roleFilter ||
+          m.branches.some((b) => b.roleId === roleFilter) ||
+          m.warehouses.some((w) => w.roleId === roleFilter);
+        if (!holdsRole) return false;
       }
       if (scope === "org") {
         return m.roleType === OrganizationRole.OWNER || !!m.roleId;
@@ -72,7 +81,7 @@ export function MembersManager({ organizationId }: { organizationId: string }) {
       }
       return true;
     });
-  }, [members, search, scope]);
+  }, [members, search, scope, roleFilter]);
 
   const counts = useMemo(
     () => ({
@@ -109,7 +118,7 @@ export function MembersManager({ organizationId }: { organizationId: string }) {
           />
         </div>
         <Select value={scope} onValueChange={setScope}>
-          <SelectTrigger className="sm:w-60">
+          <SelectTrigger className="sm:w-52">
             <SelectValue placeholder="All members" />
           </SelectTrigger>
           <SelectContent>
@@ -137,6 +146,18 @@ export function MembersManager({ organizationId }: { organizationId: string }) {
                 </SelectGroup>
               </>
             )}
+          </SelectContent>
+        </Select>
+        <Select value={roleFilter} onValueChange={setRoleFilter}>
+          <SelectTrigger className="sm:w-52">
+            <SelectValue placeholder="All roles" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All roles</SelectItem>
+            {(roles?.length ?? 0) > 0 && <SelectSeparator />}
+            {roles?.map((r) => (
+              <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>

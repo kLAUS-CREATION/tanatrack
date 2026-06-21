@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   useGetPermissionDefinitionsQuery,
   useGetOrgRolesQuery,
@@ -15,11 +15,8 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import {
-  Loader2, Save, Plus, Shield, ShieldCheck,
-  ChevronRight, Lock,
-  CheckSquare, Square
-} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Loader2, Plus, Shield, Globe, MapPin, ChevronRight, Search } from "lucide-react";
 
 import { toast } from "sonner";
 
@@ -29,18 +26,17 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export function RolePermissionsManager({ organizationId }: { organizationId: string }) {
-  const [activeTab, setActiveTab] = useState("overview");
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
   const [permissionIds, setPermissionIds] = useState<string[]>([]);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newRoleName, setNewRoleName] = useState("");
   const [newRoleKind, setNewRoleKind] = useState<RoleKind>(RoleKind.GLOBAL);
+  const [search, setSearch] = useState("");
+  const [kindFilter, setKindFilter] = useState<"all" | RoleKind>("all");
 
   // Queries
   const { data: roles, isLoading: rolesLoading } = useGetOrgRolesQuery(organizationId);
@@ -53,6 +49,25 @@ export function RolePermissionsManager({ organizationId }: { organizationId: str
   // Mutations
   const [updateRole, { isLoading: isSaving }] = useUpdateRoleMutation();
   const [createRole, { isLoading: isCreating }] = useCreateRoleMutation();
+
+  // Search by name + filter by scope. Counts feed the filter chips below.
+  const counts = useMemo(
+    () => ({
+      all: roles?.length ?? 0,
+      [RoleKind.GLOBAL]: roles?.filter((r) => r.kind === RoleKind.GLOBAL).length ?? 0,
+      [RoleKind.LOCAL]: roles?.filter((r) => r.kind === RoleKind.LOCAL).length ?? 0,
+    }),
+    [roles],
+  );
+
+  const visibleRoles = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return (roles ?? []).filter((r) => {
+      if (kindFilter !== "all" && r.kind !== kindFilter) return false;
+      if (q && !r.name.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [roles, search, kindFilter]);
 
   // Sync permissions when editing a role
   useEffect(() => {
@@ -86,6 +101,19 @@ export function RolePermissionsManager({ organizationId }: { organizationId: str
     setPermissionIds([]);
   };
 
+  // Open the create dialog from a clean slate, regardless of any role currently
+  // being edited; restore the edited role's permissions when it closes.
+  const openCreateDialog = (open: boolean) => {
+    setIsCreateDialogOpen(open);
+    if (open) {
+      setNewRoleName("");
+      setNewRoleKind(RoleKind.GLOBAL);
+      setPermissionIds([]);
+    } else if (roleDetails?.permissions) {
+      setPermissionIds(roleDetails.permissions.map((p) => p.permissionDefinitionId));
+    }
+  };
+
   const handleSaveUpdate = async () => {
     if (!selectedRoleId) return;
     try {
@@ -94,7 +122,7 @@ export function RolePermissionsManager({ organizationId }: { organizationId: str
         roleId: selectedRoleId,
         body: { permissionIds },
       }).unwrap();
-      toast.success("Security configuration updated");
+      toast.success("Permissions updated");
     } catch (e) {
       toast.error("Failed to update permissions");
     }
@@ -107,7 +135,7 @@ export function RolePermissionsManager({ organizationId }: { organizationId: str
         organizationId,
         body: { name: newRoleName, kind: newRoleKind, permissionIds },
       }).unwrap();
-      toast.success("New role established");
+      toast.success("Role created");
       setIsCreateDialogOpen(false);
       setNewRoleName("");
       setNewRoleKind(RoleKind.GLOBAL);
@@ -117,203 +145,225 @@ export function RolePermissionsManager({ organizationId }: { organizationId: str
     }
   };
 
-  if (rolesLoading) return (
-    <div className="flex flex-col items-center justify-center h-64 space-y-4">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      <p className="text-sm text-muted-foreground animate-pulse">Loading Security Modules...</p>
-    </div>
-  );
+  if (rolesLoading) {
+    return (
+      <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" /> Loading roles…
+      </div>
+    );
+  }
 
   return (
-    <div className="w-full mx-auto space-y-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-4">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold tracking-tight">Access Management</h1>
+          <h2 className="text-lg font-semibold tracking-tight">Roles &amp; permissions</h2>
+          <p className="text-sm text-muted-foreground">
+            Define roles and control what members holding them can do.
+          </p>
         </div>
-
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button size={"lg"}>
-                New Role
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="text-2xl">New Role</DialogTitle>
-              <DialogDescription>Define a new role and assign its baseline permissions.</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-6 py-4 w-full">
-              <div className="w-full flex flex-col gap-3 items-start">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Role Identity</label>
-                  <Input
-                    placeholder="e.g. Sales Manager"
-                    value={newRoleName}
-                    onChange={(e) => setNewRoleName(e.target.value)}
-                    className="text-lg"
-                  />
-                </div>
-                <div className="">
-                  <label className="text-sm font-medium">Role Scope</label>
-                  <div className="grid grid-cols-2 gap-2 rounded-lg border border-border/60 bg-muted/40 p-1">
-                    {[
-                      { kind: RoleKind.GLOBAL, label: "organization wide", hint: "Applies across the whole organization" },
-                      { kind: RoleKind.LOCAL, label: "Per-location", hint: "Assigned to a branch or warehouse" },
-                    ].map((opt) => (
-                      <button
-                        key={opt.kind}
-                        type="button"
-                        onClick={() => changeNewRoleKind(opt.kind)}
-                        title={opt.hint}
-                        className={`flex flex-col items-start gap-0.5 rounded-md px-3 py-2 text-left transition-all ${
-                          newRoleKind === opt.kind
-                            ? "bg-primary text-primary-foreground shadow-sm"
-                            : "hover:bg-background text-muted-foreground"
-                        }`}
-                      >
-                        <span className="text-sm font-semibold">{opt.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <div className="space-y-4">
-                <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Assign Permissions</h3>
-                <PermissionMatrix
-                  groupedPermissions={groupedPermissions}
-                  permissionIds={permissionIds}
-                  togglePermission={togglePermission}
-                  toggleCategory={toggleCategory}
-                  scope={newRoleKind}
-                />
-              </div>
-            </div>
-            <DialogFooter className="sticky bottom-0 py-3 bg-background">
-              <Button variant="ghost" onClick={() => setIsCreateDialogOpen(false)}>Cancel</Button>
-              <Button onClick={handleCreateRole} disabled={isCreating}>
-                {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Confirm
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={() => openCreateDialog(true)} className="gap-1.5 shrink-0">
+          <Plus className="h-4 w-4" /> New role
+        </Button>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full max-w-100 grid-cols-2 mb-8 bg-muted/50 p-1">
-          <TabsTrigger value="overview">All Roles</TabsTrigger>
-          <TabsTrigger value="designer">Manager Roles</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-3 lg:gap-4">
-            {roles?.map((role) => (
-              <div
-                key={role.id}
-                className="group relative border border-primary/30 dark:border-primary/10 rounded-lg p-3 hover:border-primary/50 transition-all duration-300 cursor-pointer"
-                onClick={() => {
-                  setSelectedRoleId(role.id);
-                  setActiveTab("designer");
-                }}
-              >
-                <div className="flex justify-between items-start mb-4">
-                  <div className="p-2 bg-primary/10 rounded-lg text-primary transition-colors">
-                    <Shield className="h-6 w-6" />
-                  </div>
-                  <p className="font-mono">
-                    {role._count?.memberships || 0} Employees
-                  </p>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        {/* Role list */}
+        <div className="lg:col-span-4 xl:col-span-3 space-y-3">
+          {!roles?.length ? (
+            <div className="rounded-lg border border-primary/40 dark:border-primary/20 p-8 text-center">
+              <Shield className="h-7 w-7 mx-auto mb-3 text-muted-foreground/60" />
+              <p className="font-medium">No roles yet</p>
+              <p className="text-sm text-muted-foreground">Create your first role to get started.</p>
+            </div>
+          ) : (
+            <>
+              {/* Search + scope filter */}
+              <div className="space-y-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search roles"
+                    className="pl-9"
+                  />
                 </div>
-                <h3 className="text-xl mb-1 flex items-center gap-2">
-                  {role.name}
-                  <RoleKindBadge kind={role.kind} />
-                </h3>
-
-                <div className="flex items-center text-foreground font-medium text-sm">
-                  Configure Permissions <ChevronRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                <div className="inline-flex w-full rounded-lg border border-primary/40 dark:border-primary/20 p-0.5 text-sm">
+                  <RoleFilterTab active={kindFilter === "all"} onClick={() => setKindFilter("all")} label="All" count={counts.all} />
+                  <RoleFilterTab active={kindFilter === RoleKind.GLOBAL} onClick={() => setKindFilter(RoleKind.GLOBAL)} label="Org" count={counts[RoleKind.GLOBAL]} />
+                  <RoleFilterTab active={kindFilter === RoleKind.LOCAL} onClick={() => setKindFilter(RoleKind.LOCAL)} label="Local" count={counts[RoleKind.LOCAL]} />
                 </div>
               </div>
-            ))}
-          </div>
-        </TabsContent>
 
-        <TabsContent value="designer">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            {/* Left Sidebar: Role Selector */}
-            <div className="lg:col-span-3 space-y-2">
-              <div className="text-xs font-bold text-muted-foreground uppercase px-2 mb-4 tracking-widest">Select Context</div>
-              {roles?.map((role) => (
-                <button
-                  key={role.id}
-                  onClick={() => setSelectedRoleId(role.id)}
-                  className={`w-full text-left px-4 py-4 rounded-xs border transition-all duration-200 flex items-center justify-between ${
-                    selectedRoleId === role.id
-                      ? "bg-primary/8 dark:bg-primary/4 border-primary/40 dark:border-primary/30"
-                      : "border-primary/20 dark:border-primary/10"
-                  }`}
-                >
-                  <div>
-                    <div className="font-semibold">{role.name}</div>
-                    <div className={`text-xs ${selectedRoleId === role.id ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-                      {role._count?.memberships} active users
-                    </div>
-                  </div>
-                  {selectedRoleId === role.id && <ShieldCheck className="h-5 w-5" />}
-                </button>
-              ))}
-            </div>
-
-            {/* Right Side: Matrix */}
-            <div className="lg:col-span-9 border border-primary/30 rounded-lg p-4">
-              {!selectedRoleId ? (
-                <div className="h-96 flex flex-col items-center justify-center text-center">
-                  <div className="p-6 bg-background rounded-full mb-4 shadow-inner">
-                    <Lock className="h-12 w-12 text-muted-foreground/40" />
-                  </div>
-                  <h3 className="text-xl font-semibold">No Role Selected</h3>
-                  <p className="text-muted-foreground max-w-xs mx-auto">Select a role from the sidebar to modify its security clearance level.</p>
+              {visibleRoles.length === 0 ? (
+                <div className="rounded-lg border border-primary/40 dark:border-primary/20 p-8 text-center">
+                  <Search className="h-6 w-6 mx-auto mb-2 text-muted-foreground/60" />
+                  <p className="text-sm text-muted-foreground">No roles match your filters.</p>
                 </div>
               ) : (
-                <div className="space-y-8">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <h2 className="text-3xl font-bold tracking-tight">{roleDetails?.name}</h2>
-                        {roleDetails?.kind && <RoleKindBadge kind={roleDetails.kind} />}
-                        <Badge className="bg-green-500/10 text-green-600 border-green-500/20">Active Configuration</Badge>
-                      </div>
-                      <p className="text-muted-foreground">Modifying permissions for the {roleDetails?.name?.toLowerCase()} security group.</p>
-                    </div>
-                    <Button
-                      size="lg"
-                      onClick={handleSaveUpdate}
-                      disabled={isSaving || roleFetching}
+            <div className="rounded-lg border border-primary/40 dark:border-primary/20 divide-y divide-primary/40 dark:divide-primary/20 overflow-hidden">
+              {visibleRoles.map((role) => {
+                const active = selectedRoleId === role.id;
+                return (
+                  <button
+                    key={role.id}
+                    onClick={() => setSelectedRoleId(role.id)}
+                    className={cn(
+                      "w-full text-left flex items-center gap-3 p-3 transition-colors",
+                      active ? "bg-primary/8 dark:bg-primary/10" : "hover:bg-muted/50",
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
+                        active ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
+                      )}
                     >
-                      {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" /> }
-                      Sync Changes
-                    </Button>
-                  </div>
-
-                  {roleFetching ? (
-                    <div className="py-24 flex flex-col items-center justify-center space-y-4">
-                      <Loader2 className="animate-spin h-10 w-10 text-primary" />
-                      <p className="text-muted-foreground font-medium">Decrypting Permissions...</p>
-                    </div>
-                  ) : (
-                    <PermissionMatrix
-                      groupedPermissions={groupedPermissions}
-                      permissionIds={permissionIds}
-                      togglePermission={togglePermission}
-                      toggleCategory={toggleCategory}
-                      scope={roleDetails?.kind}
+                      <Shield className="h-4 w-4" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-2">
+                        <span className="font-medium truncate">{role.name}</span>
+                        <RoleKindBadge kind={role.kind} />
+                      </span>
+                      <span className="block text-xs text-muted-foreground">
+                        {role._count?.memberships ?? 0}{" "}
+                        {role._count?.memberships === 1 ? "member" : "members"}
+                      </span>
+                    </span>
+                    <ChevronRight
+                      className={cn(
+                        "h-4 w-4 shrink-0 text-muted-foreground transition-opacity",
+                        active ? "opacity-100" : "opacity-0",
+                      )}
                     />
-                  )}
-                </div>
+                  </button>
+                );
+              })}
+            </div>
               )}
+            </>
+          )}
+        </div>
+
+        {/* Permission editor */}
+        <div className="lg:col-span-8 xl:col-span-9">
+          {!selectedRoleId ? (
+            <div className="flex h-full min-h-72 flex-col items-center justify-center rounded-lg border border-dashed border-primary/40 dark:border-primary/20 p-8 text-center">
+              <Shield className="h-8 w-8 mb-3 text-muted-foreground/50" />
+              <p className="font-medium">Select a role to edit</p>
+              <p className="text-sm text-muted-foreground max-w-xs">
+                Choose a role from the list to review and adjust its permissions.
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-primary/40 dark:border-primary/20">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-primary/40 dark:border-primary/20 p-4">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-semibold tracking-tight truncate">
+                      {roleDetails?.name ?? "…"}
+                    </h3>
+                    {roleDetails?.kind && <RoleKindBadge kind={roleDetails.kind} />}
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {permissionIds.length} permission{permissionIds.length === 1 ? "" : "s"} granted
+                  </p>
+                </div>
+                <Button onClick={handleSaveUpdate} disabled={isSaving || roleFetching} className="shrink-0">
+                  {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Save changes
+                </Button>
+              </div>
+
+              <div className="p-4">
+                {roleFetching ? (
+                  <div className="flex items-center justify-center gap-2 py-20 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Loading permissions…
+                  </div>
+                ) : (
+                  <PermissionMatrix
+                    groupedPermissions={groupedPermissions}
+                    permissionIds={permissionIds}
+                    togglePermission={togglePermission}
+                    toggleCategory={toggleCategory}
+                    scope={roleDetails?.kind}
+                  />
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Create role dialog */}
+      <Dialog open={isCreateDialogOpen} onOpenChange={openCreateDialog}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>New role</DialogTitle>
+            <DialogDescription>Name the role, choose its scope, and pick its permissions.</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 py-2">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Name</label>
+                <Input
+                  placeholder="e.g. Sales Manager"
+                  value={newRoleName}
+                  onChange={(e) => setNewRoleName(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Scope</label>
+                <div className="grid grid-cols-2 gap-1 rounded-lg border border-primary/40 dark:border-primary/20 p-1">
+                  {[
+                    { kind: RoleKind.GLOBAL, label: "Organization", icon: Globe, hint: "Applies across the whole organization" },
+                    { kind: RoleKind.LOCAL, label: "Location", icon: MapPin, hint: "Assigned to a branch or warehouse" },
+                  ].map((opt) => (
+                    <button
+                      key={opt.kind}
+                      type="button"
+                      onClick={() => changeNewRoleKind(opt.kind)}
+                      title={opt.hint}
+                      className={cn(
+                        "flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium transition-colors",
+                        newRoleKind === opt.kind
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:bg-muted",
+                      )}
+                    >
+                      <opt.icon className="h-3.5 w-3.5" />
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <h4 className="text-sm font-medium">Permissions</h4>
+              <PermissionMatrix
+                groupedPermissions={groupedPermissions}
+                permissionIds={permissionIds}
+                togglePermission={togglePermission}
+                toggleCategory={toggleCategory}
+                scope={newRoleKind}
+              />
             </div>
           </div>
-        </TabsContent>
-      </Tabs>
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => openCreateDialog(false)}>Cancel</Button>
+            <Button onClick={handleCreateRole} disabled={isCreating}>
+              {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Create role
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -337,7 +387,8 @@ function categoryRank(category: string): number {
 }
 
 /**
- * Sub-component for the Permission Grid to keep the main logic clean
+ * Grouped, scope-filtered permission picker shared by the editor and the
+ * create dialog.
  */
 function PermissionMatrix({
   groupedPermissions,
@@ -366,79 +417,79 @@ function PermissionMatrix({
     .sort((a, b) => categoryRank(a.category) - categoryRank(b.category));
 
   return (
-    <div className="space-y-10">
-      <div className="text-sm text-muted-foreground bg-muted/40 border rounded-lg p-3 leading-relaxed">
+    <div className="space-y-6">
+      <div className="flex items-start gap-2 text-sm text-muted-foreground rounded-lg border border-primary/40 dark:border-primary/20 bg-muted/40 p-3 leading-relaxed">
         {scope === RoleKind.LOCAL ? (
           <>
-            <span className="font-semibold text-foreground">Per-location</span> permissions take effect
-            wherever this role is assigned. Grant the role to a member on a specific{" "}
-            <span className="font-semibold text-foreground">branch or warehouse</span> from the{" "}
-            <span className="font-semibold text-foreground">Members</span> tab to scope their access there.
+            <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
+            <span>
+              <span className="font-medium text-foreground">Per-location</span> permissions take effect
+              wherever this role is assigned. Grant it to a member on a specific{" "}
+              <span className="font-medium text-foreground">branch or warehouse</span> from the{" "}
+              <span className="font-medium text-foreground">Members</span> tab.
+            </span>
           </>
         ) : (
           <>
-            <span className="font-semibold text-foreground">Org-wide</span> permissions apply across the
-            entire organization for anyone holding this role.
+            <Globe className="h-4 w-4 mt-0.5 shrink-0" />
+            <span>
+              <span className="font-medium text-foreground">Org-wide</span> permissions apply across the
+              entire organization for anyone holding this role.
+            </span>
           </>
         )}
       </div>
+
       {groups.map((group) => {
         const isAllInGroupSelected = group.permissions.every((p) => permissionIds.includes(p.id));
-        const isSomeInGroupSelected = group.permissions.some((p) => permissionIds.includes(p.id)) && !isAllInGroupSelected;
+        const selectedCount = group.permissions.filter((p) => permissionIds.includes(p.id)).length;
 
         return (
-          <div key={group.category} className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-            <div className="flex items-center justify-between mb-4 py-2">
-              <div className="flex items-center gap-3">
-                <div className="h-8 w-1 bg-primary rounded-full" />
-                <h3 className="font-bold text-lg tracking-tight uppercase">{categoryLabel(group.category)}</h3>
-                <Badge variant="outline" className="bg-background">{group.permissions.length} permissions</Badge>
+          <div key={group.category} className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <h4 className="text-sm font-semibold tracking-tight">{categoryLabel(group.category)}</h4>
+                <Badge variant="secondary" className="text-xs font-normal">
+                  {selectedCount}/{group.permissions.length}
+                </Badge>
               </div>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => toggleCategory(group.permissions)}
-                className={`flex items-center gap-2 hover:bg-background ${isAllInGroupSelected ? 'text-primary' : 'text-muted-foreground'}`}
+                className="h-7 text-xs text-muted-foreground"
               >
-                {isAllInGroupSelected ? <CheckSquare className="h-4 w-4" /> : isSomeInGroupSelected ? <Square className="h-4 w-4 fill-primary/20" /> : <Square className="h-4 w-4" />}
-                <span className="text-xs font-bold tracking-widest uppercase">
-                  {isAllInGroupSelected ? "Deselect All" : "Select All"}
-                </span>
+                {isAllInGroupSelected ? "Clear all" : "Select all"}
               </Button>
             </div>
 
-            <div className="flex flex-col gap-2">
-              {group.permissions.map((p: IPermissionDefinition) => (
-                <div
-                  key={p.id}
-                  onClick={() => togglePermission(p.id)}
-                  className={`flex items-start space-x-4 p-3 rounded-xs border border-primary/10 transition-all duration-200 cursor-pointer group ${
-                    permissionIds.includes(p.id)
-                      ? "bg-primary/3 border-primary/30"
-                      : "bg-background hover:border-muted-foreground/30 hover:bg-muted/10"
-                  }`}
-                >
-                  <div className="pt-0.5">
+            <div className="rounded-lg border border-primary/40 dark:border-primary/20 divide-y divide-primary/40 dark:divide-primary/20 overflow-hidden">
+              {group.permissions.map((p: IPermissionDefinition) => {
+                const checked = permissionIds.includes(p.id);
+                return (
+                  <label
+                    key={p.id}
+                    htmlFor={p.id}
+                    className={cn(
+                      "flex items-start gap-3 p-3 cursor-pointer transition-colors",
+                      checked ? "bg-primary/5" : "hover:bg-muted/50",
+                    )}
+                  >
                     <Checkbox
                       id={p.id}
-                      checked={permissionIds.includes(p.id)}
+                      checked={checked}
                       onCheckedChange={() => togglePermission(p.id)}
-                      className="h-5 w-5 rounded-md border-muted-foreground/30 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                      className="mt-0.5"
                     />
-                  </div>
-                  <div className="grid gap-1.5 leading-none">
-                    <label
-                      htmlFor={p.id}
-                      className="text-[15px] font-bold cursor-pointer transition-colors flex items-center gap-2"
-                    >
-                      {p.name}
-                    </label>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      {p.description}
-                    </p>
-                  </div>
-                </div>
-              ))}
+                    <div className="grid gap-0.5 leading-tight">
+                      <span className="text-sm font-medium">{p.name}</span>
+                      {p.description && (
+                        <span className="text-sm text-muted-foreground">{p.description}</span>
+                      )}
+                    </div>
+                  </label>
+                );
+              })}
             </div>
           </div>
         );
@@ -447,15 +498,41 @@ function PermissionMatrix({
   );
 }
 
+/** One segment of the role scope filter, with a live count. */
+function RoleFilterTab({
+  active,
+  onClick,
+  label,
+  count,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  count: number;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex-1 rounded-md px-2 py-1.5 transition-colors",
+        active ? "bg-muted font-medium text-foreground" : "text-muted-foreground hover:text-foreground",
+      )}
+    >
+      {label} <span className="text-xs tabular-nums text-muted-foreground">{count}</span>
+    </button>
+  );
+}
+
 /** Small badge labelling a role as org-wide (GLOBAL) or per-location (LOCAL). */
 function RoleKindBadge({ kind }: { kind: RoleKind }) {
   return kind === RoleKind.LOCAL ? (
-    <Badge variant="outline" className="text-[10px] uppercase tracking-wider bg-blue-500/10 text-blue-600 border-blue-500/20">
-      Per-location
+    <Badge variant="outline" className="gap-1 text-[10px] uppercase tracking-wider">
+      <MapPin className="h-2.5 w-2.5" /> Per-location
     </Badge>
   ) : (
-    <Badge variant="outline" className="text-[10px] uppercase tracking-wider bg-muted text-muted-foreground">
-      Org-wide
+    <Badge variant="outline" className="gap-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+      <Globe className="h-2.5 w-2.5" /> Org-wide
     </Badge>
   );
 }
